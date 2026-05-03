@@ -171,7 +171,7 @@ function Dashboard() {
           {/* 타이틀 영역 - 좌측 정렬 */}
           <div className="flex flex-col items-start">
             <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground/80 mb-0.5">
-              노원지원 80인 도장 달성을 위한
+              노원지원 100인 도장 달성을 위한
             </span>
             <div className="flex items-center gap-1">
               <h1 className="text-base sm:text-lg font-bold leading-none">
