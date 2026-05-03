@@ -2,86 +2,23 @@
 
 ## Project Overview
 
-Nowon Light Tracker is a Next.js 16 application for tracking workout/training sessions with Supabase backend.
+Nowon Light Tracker는 노원지원 100인 도장 달성을 위한 **1만 빛 모으기 역사** 웹 애플리케이션입니다.
+
+**전체 프로젝트 문서**: [AGENTS.md](./AGENTS.md)
 
 ## Quick Reference
 
-**Full project documentation, architecture, and deployment guide**: See [AGENTS.md](./AGENTS.md)
+- **Tech Stack**: Next.js 16 + React 19 + Supabase + Zustand + Tailwind CSS 4
+- **Production**: https://nowon-light-tracker.vercel.app
+- **GitHub**: https://github.com/lsukhyung/nowon-light-tracker
 
-## Key Information for Claude
+## Key Rules
 
-### Tech Stack
-- **Framework**: Next.js 16 + React 19
-- **Backend**: Supabase (PostgreSQL with RLS)
-- **State**: Zustand (client) + TanStack Query (server)
-- **UI**: Radix UI + Tailwind CSS 4
-- **Charts**: Recharts
-
-### Environment Setup
-Required environment variables (see `.env.example`):
-```bash
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-```
-
-### Project Structure
-```
-src/
-├── app/              # Next.js app router pages
-│   ├── api/          # API routes
-│   ├── login/        # Login page
-│   └── register/     # Registration page
-├── components/       # React components
-│   ├── auth/         # Authentication components
-│   ├── training/     # Training-related components
-│   └── ui/           # Reusable UI components
-├── lib/
-│   └── supabase.ts   # Supabase client configuration
-├── store/            # Zustand stores
-└── types/            # TypeScript types
-```
-
-## Development Guidelines
-
-### Code Style
-- Use TypeScript strict mode
-- Follow existing component patterns
-- Use Radix UI primitives for accessibility
-- Maintain mobile-first responsive design
-
-### Authentication
-- All protected routes must use `<ProtectedRoute>` wrapper
-- Use `createSupabaseClientWithAuth()` for authenticated API calls
-- Auth state managed in `src/store/auth-store.ts`
-
-### Database Operations
-- Use Supabase client from `src/lib/supabase.ts`
-- Always validate user permissions with RLS policies
-- Handle errors gracefully with proper status codes
-
-### API Routes
-- Located in `src/app/api/`
-- Use snake_case for database fields
-- Convert to camelCase for API responses
-- Return proper JSON responses
-
-## Deployment
-
-**Production**: https://training-tracker-chi.vercel.app
-
-See [AGENTS.md](./AGENTS.md#deployment) for complete deployment instructions.
-
-## Troubleshooting
-
-Common issues and solutions are documented in [AGENTS.md](./AGENTS.md#troubleshooting).
+- 수동 배포만: `vercel --prod --yes` (사용자가 명시적으로 요청할 때만)
+- 조직명: "노원지원" (종로지원 아님)
+- DB 마이그레이션: `migrations/` 디렉토리의 SQL 파일을 Supabase SQL Editor에서 실행
+- 사용자 인증: 전화번호를 `user_{phone}@gmail.com` 형식으로 변환하여 Supabase Auth 사용
 
 ---
 
-**Note**: This file contains quick reference. For comprehensive documentation including:
-- Complete project structure
-- Database schema
-- Deployment guide
-- Common tasks
-- Dependencies reference
-
-See **[AGENTS.md](./AGENTS.md)**
+상세 문서는 [AGENTS.md](./AGENTS.md)를 참조하세요.

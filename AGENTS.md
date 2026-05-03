@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Nowon Light Tracker** is a Next.js 16 application for tracking workout/training sessions with Supabase backend.
+**Nowon Light Tracker**는 노원지원 100인 도장 달성을 위한 **1만 빛 모으기 역사** 웹 애플리케이션입니다.
 
 - **Framework**: Next.js 16.1.6 with React 19.2.3
 - **Backend**: Supabase (PostgreSQL with Row Level Security)
@@ -16,6 +16,26 @@
 1. **Be Cautious with Modifications**: When making code modifications (especially frontend UI/UX changes), carefully consider side-effects across different platforms (e.g., iOS Safari specific physics, layout shifts, or local storage persistence). Do not rush structural changes without understanding the broader impact.
 2. **Manual Vercel Deployment**: ⚠️ Do NOT deploy to Vercel automatically. Only run deployment commands (e.g., `vercel --prod`) when the USER explicitly requests a deployment ("배포해줘").
 
+## Tech Stack
+
+- **Framework**: Next.js 16 + React 19
+- **Backend**: Supabase (PostgreSQL with RLS)
+- **State**: Zustand (client) + TanStack Query (server)
+- **UI**: Radix UI + Tailwind CSS 4
+- **Charts**: Recharts
+
+## Environment Setup
+
+Required environment variables (see `.env.example`):
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+**Get these from**: Supabase Dashboard → Project → Settings → API
+
 ## Project Structure
 
 ```
@@ -28,267 +48,210 @@ nowon-light-tracker/
 │   │   │   │   ├── logout/    # POST /api/auth/logout
 │   │   │   │   ├── me/        # GET /api/auth/me
 │   │   │   │   └── register/  # POST /api/auth/register
-│   │   │   └── training/      # Training records endpoints
-│   │   │       ├── route.ts           # GET (all), POST (create)
-│   │   │       ├── [id]/route.ts      # GET, PUT, DELETE by ID
-│   │   │       ├── date/[date]/       # GET by date
-│   │   │       └── stats/route.ts     # GET statistics
-│   │   ├── login/           # Login page
-│   │   ├── register/        # Registration page
-│   │   ├── layout.tsx       # Root layout with auth provider
-│   │   └── page.tsx         # Main dashboard
+│   │   │   ├── admin/         # Admin endpoints (stats, export, users, reset-password)
+│   │   │   ├── events/        # Event management + check-win
+│   │   │   ├── personal-events/ # Personal event CRUD + check-achieve
+│   │   │   ├── practice-items/ # Practice item management
+│   │   │   ├── practice-logs/  # Daily practice logs
+│   │   │   ├── stats/         # Statistics endpoints
+│   │   │   ├── training/      # Training records endpoints
+│   │   │   └── user/          # User settings & goals
+│   │   ├── admin/             # Admin dashboard page
+│   │   ├── login/             # Login page
+│   │   ├── register/          # Registration page
+│   │   ├── reset-password/    # Password reset page
+│   │   ├── settings/          # User settings page
+│   │   ├── layout.tsx         # Root layout with auth provider
+│   │   └── page.tsx           # Main dashboard
 │   ├── components/
-│   │   ├── auth/            # Authentication components
+│   │   ├── auth/              # Authentication components
 │   │   │   ├── auth-provider.tsx     # Auth context provider
 │   │   │   └── protected-route.tsx   # Route guard component
-│   │   ├── training/        # Training-related components
-│   │   │   ├── training-calendar.tsx # Calendar view
-│   │   │   ├── training-card.tsx      # Record card
-│   │   │   ├── training-form.tsx      # Create/edit form
-│   │   │   └── training-list.tsx      # List view
-│   │   └── ui/              # Reusable UI components (Radix UI)
+│   │   ├── events/            # Event modals
+│   │   │   ├── event-congratulation-modal.tsx          # Global event win modal
+│   │   │   └── personal-event-congratulation-modal.tsx # Personal event achieve modal
+│   │   ├── practice/          # Practice system components
+│   │   │   └── practice-form.tsx
+│   │   ├── training/          # Training-related components
+│   │   └── ui/                # Reusable UI components (Radix UI)
+│   ├── hooks/
+│   │   ├── use-event-popup.ts           # Global event popup hook
+│   │   ├── use-personal-event-popup.ts  # Personal event popup hook
+│   │   └── use-pull-to-refresh.ts
 │   ├── lib/
-│   │   ├── supabase.ts      # Supabase client configuration
-│   │   └── utils.ts         # Utility functions (cn, etc.)
+│   │   ├── admin.ts           # Admin email check
+│   │   ├── api.ts             # API client (axios)
+│   │   ├── password.ts        # Password generation
+│   │   ├── supabase.ts        # Supabase client + TABLES constant
+│   │   ├── training-items.ts  # Training item metadata
+│   │   ├── user-titles.ts     # User title mappings (지원장, 현사, 생활지로사, 도반)
+│   │   └── utils.ts           # Utility functions (cn, etc.)
 │   ├── store/
-│   │   └── auth-store.ts    # Zustand auth state management
+│   │   ├── auth-store.ts      # Zustand auth state
+│   │   ├── practice-store.ts  # Zustand practice state
+│   │   └── training-store.ts  # Zustand training state
 │   └── types/
-│       └── index.ts         # TypeScript type definitions
-├── public/                  # Static assets
-├── .env.local              # Local environment variables (not in git)
-├── .env.example            # Environment variable template
-└── package.json            # Dependencies and scripts
+│       └── training.ts        # TypeScript type definitions
+├── migrations/                 # SQL migration files
+│   ├── migration_users.sql           # users table + auth sync trigger
+│   ├── migration_personal_events.sql # personal_events table
+│   ├── migration_events.sql          # events table
+│   ├── migration_practice_system.sql # practice system tables
+│   ├── add_memo_column.sql
+│   ├── add_haengong_percent.sql
+│   └── add_naui_yeoksa_column.sql
+├── public/
+│   └── images/bouquets/       # Bouquet images for personal events
+├── supabase-rls-setup.sql     # training_records table + RLS
+├── .env.local                 # Local environment variables (not in git)
+├── .env.example               # Environment variable template
+└── package.json               # Dependencies and scripts
 ```
-
-## Environment Variables
-
-Required environment variables (see `.env.example`):
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-```
-
-**Get these from**: Supabase Dashboard → Project → Settings → API
 
 ## Database Schema
 
+### `users` Table
+- `id` (uuid, PK → auth.users)
+- `name` (text)
+- `email` (text)
+- `phone` (text)
+- `is_admin` (boolean, default false)
+- `created_at` (timestamptz)
+- Auto-synced from `auth.users` via trigger
+
 ### `training_records` Table
-- `id` (uuid, primary key)
-- `user_id` (uuid, foreign key → auth.users)
+- `id` (uuid, PK)
+- `user_id` (uuid → auth.users)
 - `date` (date)
-- `type` (text) - workout type
-- `duration` (integer) - minutes
-- `intensity` (integer) - 1-10 scale
-- `notes` (text) - optional notes
-- `created_at` (timestamp)
-- `updated_at` (timestamp)
+- 수련 항목들: 체조, 행공, 본수련, 회건술, 석문도서봉독, 행공퍼센트, 운광복습, 삼주축광, 내면공간, 마음과마음가짐수련, 나의역사, 회광반조, 성찰탐구, memo
+- UNIQUE(user_id, date)
 
-**Row Level Security (RLS)**: Enabled with policies to ensure users can only access their own records.
+### `practice_items` Table
+- `id` (uuid, PK)
+- `name` (text) - 실천과제명
+- `description` (text) - 기준 설명
+- `light_per_unit` (decimal) - 1회당 빛
+- `is_default` (boolean)
+- 10개 기본 과제: 체조, 회건술, 행공, 본수련, 현무, 석문기공, 석문도서봉독, 도장출석, 석문강좌 시청, 선차 마시기
 
-See `supabase-rls-setup.sql` for complete RLS policy definitions.
+### `user_practice_settings` Table
+- `id` (uuid, PK)
+- `user_id` (uuid → auth.users)
+- `practice_item_id` (uuid → practice_items)
+- `is_active` (boolean)
+- UNIQUE(user_id, practice_item_id)
+
+### `daily_practice_logs` Table
+- `id` (uuid, PK)
+- `user_id` (uuid → auth.users)
+- `practice_item_id` (uuid → practice_items)
+- `date` (date)
+- `count` (integer) - 횟수
+- `light` (decimal) - count × light_per_unit
+- UNIQUE(user_id, practice_item_id, date)
+
+### `user_goals` Table
+- `id` (uuid, PK)
+- `user_id` (uuid → auth.users, UNIQUE)
+- `daily_light_goal` (decimal) - 1일 목표 빛
+- `total_light_goal` (decimal) - 누적 목표 빛
+
+### `events` Table
+- `id` (uuid, PK)
+- `name` (text) - 이벤트명
+- `light_threshold` (numeric) - 기준 빛 수
+- `is_active` (boolean)
+- `winner_user_id` (uuid → auth.users) - 최초 달성자
+- `winner_user_name` (text)
+- `achieved_light` (numeric)
+- `won_at` (timestamptz)
+
+### `personal_events` Table
+- `id` (uuid, PK)
+- `user_id` (uuid → auth.users)
+- `user_name` (text)
+- `name` (text) - 개인 이벤트명
+- `light_threshold` (numeric) - 목표 빛 수
+- `is_active` (boolean)
+- `bouquet_image_url` (text) - 꽃다발 이미지
+- `achieved_light` (numeric)
+- `achieved_at` (timestamptz) - null이면 미달성
+
+**모든 테이블에 RLS(Row Level Security) 적용됨**
+
+## Development Guidelines
+
+### Code Style
+- Use TypeScript strict mode
+- Follow existing component patterns
+- Use Radix UI primitives for accessibility
+- Maintain mobile-first responsive design
+
+### Authentication
+- All protected routes must use `<ProtectedRoute>` wrapper
+- Use `createSupabaseClientWithAuth()` for authenticated API calls
+- Auth state managed in `src/store/auth-store.ts`
+- Phone numbers are converted to email format: `user_{phone}@gmail.com`
+
+### Database Operations
+- Use Supabase client from `src/lib/supabase.ts`
+- Always validate user permissions with RLS policies
+- Handle errors gracefully with proper status codes
+
+### API Routes
+- Located in `src/app/api/`
+- Use snake_case for database fields
+- Convert to camelCase for API responses
+- Return proper JSON responses
+
+### User Titles
+- Managed in `src/lib/user-titles.ts`
+- 지원장: 청선
+- 현사: 심인희, 우봉진, 강성순, 최애숙, 박점섭, 맹강주, 중현
+- 생활지로사: 김보향, 황화진
+- Default: 도반
 
 ## Deployment
 
 ### Vercel Deployment
 
-**Production URL**: https://training-tracker-chi.vercel.app
+**Production URL**: https://nowon-light-tracker.vercel.app
 
 #### Prerequisites
 1. Vercel account with GitHub integration
 2. Supabase project configured
 3. Git author email must match Vercel account
 
-#### Deployment Steps
-
-1. **Install Vercel CLI**:
-   ```bash
-   npm install -g vercel
-   ```
-
-2. **Login to Vercel**:
-   ```bash
-   vercel login
-   ```
-
-3. **Set Environment Variables**:
-   ```bash
-   echo "https://your-project.supabase.co" | vercel env add NEXT_PUBLIC_SUPABASE_URL production
-   echo "your-anon-key" | vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
-   ```
-
-4. **Deploy to Production**:
-   ```bash
-   vercel --yes --prod
-   ```
-
-#### Automatic Deployment
-- GitHub repository is connected to Vercel
-- Push to `master` branch triggers automatic production deployment
-- Feature branches create preview deployments
-
 #### Manual Deployment (수동 배포)
 
-자동 배포가 작동하지 않을 때 수동으로 배포하는 방법입니다.
-
-**1. Git 사용자 설정 확인**
-
-Vercel은 Git 커밋 작성자의 이메일을 확인합니다. **반드시 `lsukhyung@gmail.com`으로 설정해야 합니다.**
-
 ```bash
-# 현재 Git 설정 확인
-git config user.email
-git config user.name
+# 프로덕션에 배포
+vercel --prod --yes
 
-# lsukhyung@gmail.com으로 설정 (필수!)
-git config user.email "lsukhyung@gmail.com"
-git config user.name "lsukhyung"
-```
-
-⚠️ **중요**: 다른 이메일로 설정되어 있으면 Vercel 배포가 실패합니다.
-
-**2. Vercel CLI 설치 및 로그인**
-
-```bash
-# Vercel CLI 전역 설치
-npm install -g vercel
-
-# 버전 확인
-vercel --version
-
-# Vercel 로그인 (이메일 인증 필요)
-vercel login
-```
-
-로그인 과정:
-1. 이메일 주소 입력
-2. 받은 메일에서 인증 링크 클릭
-3. "You're now logged in" 메시지 확인
-
-**3. 프로젝트 연결 (최초 1회)**
-
-```bash
-# 프로젝트 루트 디렉토리에서 실행
+# 프리뷰 배포
 vercel
 
-# 질문에 답변:
-# - Set up and deploy? [Y/n] → Y
-# - Which scope? → 본인 계정 또는 팀 선택
-# - Link to existing project? [y/N] → y (기존 프로젝트가 있는 경우)
-# - What's the name of your existing project? → nowon-light-tracker
-```
-
-**4. 프로덕션 배포**
-
-```bash
-# 프로덕션에 배포 (--yes는 모든 질문에 자동으로 yes)
-vercel --prod --yes
-```
-
-배포 과정:
-1. 프로젝트 파일 업로드
-2. 빌드 실행 (npm run build)
-3. 배포 완료 → URL 출력
-
-**5. 배포 확인**
-
-```bash
 # 배포 로그 확인
 vercel inspect <deployment-url> --logs
-
-# 최근 배포 목록
-vercel ls
-
-# 프로젝트 정보
-vercel inspect
 ```
 
-**문제 해결**
+#### Environment Variables (Vercel)
 
-❌ **"Git author must have access to the team" 에러**
-```bash
-# Git 작성자 이메일을 lsukhyung@gmail.com으로 변경 (필수!)
-git config user.email "lsukhyung@gmail.com"
-git config user.name "lsukhyung"
-
-# 빈 커밋으로 새 작성자 정보 반영
-git commit --allow-empty -m "chore: update git author for deployment"
-git push origin master
-
-# 다시 배포
-vercel --prod --yes
-```
-
-❌ **환경 변수 누락 에러**
-```bash
-# Vercel 대시보드에서 설정: Settings → Environment Variables
-# 또는 CLI로 설정:
-vercel env add NEXT_PUBLIC_SUPABASE_URL production
-vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
-vercel env add SUPABASE_SERVICE_ROLE_KEY production
-```
-
-❌ **빌드 실패**
-```bash
-# 로컬에서 빌드 테스트
-npm run build
-
-# 빌드 캐시 제거 후 재배포
-rm -rf .next
-vercel --prod --yes
-```
-
-**유용한 명령어**
-
-```bash
-# 개발 환경에 배포 (프리뷰)
-vercel
-
-# 특정 브랜치 배포
-vercel --prod
-
-# 이전 배포 재배포
-vercel redeploy <deployment-url> --prod
-
-# 배포 취소/롤백
-vercel rollback
-
-# 프로젝트 환경 변수 확인
-vercel env ls
-
-# 도메인 목록
-vercel domains ls
-```
-
-**자동 배포 활성화 확인**
-
-Vercel 대시보드에서:
-1. 프로젝트 선택
-2. **Settings** → **Git**
-3. "Production Branch" → `master` 확인
-4. "Ignored Build Step" → 비활성화 확인
-5. Git Integration 연결 상태 확인
-
-## Development
+Set in Vercel Dashboard → Settings → Environment Variables:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
 ### Local Development
 
-1. **Install dependencies**:
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+cp .env.example .env.local
+# Edit .env.local with Supabase credentials
+npm run dev
+```
 
-2. **Set up environment**:
-   ```bash
-   cp .env.example .env.local
-   # Edit .env.local with your Supabase credentials
-   ```
-
-3. **Run development server**:
-   ```bash
-   npm run dev
-   ```
-   Open http://localhost:3000
+Open http://localhost:3000
 
 ### Available Scripts
 
@@ -297,54 +260,15 @@ Vercel 대시보드에서:
 - `npm start` - Start production server
 - `npm run lint` - Run ESLint
 
-## Key Features Implemented
-
-### Authentication
-- Email/password registration
-- Secure login with Supabase Auth
-- Protected routes with `ProtectedRoute` component
-- Auth state management with Zustand
-
-### Training Records
-- Create training records with form validation
-- View records by date (calendar view)
-- List view of all records
-- Edit and delete records
-- Statistics dashboard with charts
-
-### Mobile Optimization
-- Touch-friendly slider controls
-- Responsive design for all screen sizes
-- Optimized mobile viewport settings
-
-## Common Tasks
-
-### Add a New API Endpoint
-
-1. Create route file in `src/app/api/`
-2. Use `createSupabaseClientWithAuth()` for authenticated requests
-3. Handle errors and return proper JSON responses
-4. Test with `curl` or Postman
-
-### Add a New Page
-
-1. Create directory in `src/app/`
-2. Add `page.tsx` with React component
-3. Wrap with `ProtectedRoute` if authentication required
-4. Add navigation link in existing pages
-
-### Database Schema Changes
-
-1. Update schema in Supabase Dashboard
-2. Update TypeScript types in `src/types/index.ts`
-3. Update API endpoints to handle new fields
-4. Update forms and components to use new fields
-
 ## Troubleshooting
 
 ### "supabaseUrl is required" Error
-- Check that environment variables are set in `.env.local` for local development
+- Check `.env.local` for local development
 - Check Vercel environment variables for production
+
+### "Email not confirmed" Error
+- Supabase Dashboard → Authentication → Providers → Email
+- Disable "Confirm email" toggle
 
 ### RLS Policy Violations
 - Ensure user is authenticated
@@ -354,7 +278,6 @@ Vercel 대시보드에서:
 ### Git Author Permission Issues
 - Ensure git author email matches Vercel account
 - Use `git config user.email` to check/set email
-- Create a new commit to update git author
 
 ## Dependencies Reference
 
@@ -379,8 +302,9 @@ Vercel 대시보드에서:
 - **date-fns**: 4.1.0 - Date manipulation
 - **clsx**: 2.1.1 - Conditional className utility
 - **tailwind-merge**: 3.4.0 - Merge Tailwind classes
+- **canvas-confetti**: - Confetti animation for event modals
 
 ---
 
-**Last Updated**: 2026-02-06
+**Last Updated**: 2026-05-03
 **Version**: 0.1.0
