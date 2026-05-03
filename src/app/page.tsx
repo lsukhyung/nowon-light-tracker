@@ -14,13 +14,16 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useEventPopup } from '@/hooks/use-event-popup';
+import { usePersonalEventPopup } from '@/hooks/use-personal-event-popup';
 import { EventCongratulationModal } from '@/components/events/event-congratulation-modal';
+import { PersonalEventCongratulationModal } from '@/components/events/personal-event-congratulation-modal';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 
 function Dashboard() {
   const { user, logout } = useAuthStore();
   const { eventsToShow, isOpen: isEventPopupOpen, handleClose: handleEventPopupClose } = useEventPopup(user?.id);
+  const { eventsToShow: personalEventsToShow, isOpen: isPersonalEventPopupOpen, handleClose: handlePersonalEventPopupClose } = usePersonalEventPopup(user?.id);
   const {
     goal,
     selectedDate,
@@ -168,7 +171,7 @@ function Dashboard() {
           {/* 타이틀 영역 - 좌측 정렬 */}
           <div className="flex flex-col items-start">
             <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground/80 mb-0.5">
-              종로지원 80인 도장 달성을 위한
+              노원지원 80인 도장 달성을 위한
             </span>
             <div className="flex items-center gap-1">
               <h1 className="text-base sm:text-lg font-bold leading-none">
@@ -253,6 +256,15 @@ function Dashboard() {
           events={eventsToShow}
           currentUserId={user.id}
           onClose={handleEventPopupClose}
+        />
+      )}
+
+      {/* 개인 이벤트 달성 팝업 */}
+      {isPersonalEventPopupOpen && user?.id && (
+        <PersonalEventCongratulationModal
+          events={personalEventsToShow}
+          currentUserId={user.id}
+          onClose={handlePersonalEventPopupClose}
         />
       )}
     </div>

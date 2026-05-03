@@ -7,22 +7,21 @@
  */
 export const USER_TITLES: Record<string, string> = {
   // 지원장
-  '덕산': '지원장',
+  '청선': '지원장',
 
   // 현사
-  '이주열': '현사',
-  '하호경': '현사',
-  '정덕순': '현사',
-  '류연항': '현사',
-  '윤미영': '현사',
-  '이경근': '현사',
-  '류샛별': '현사',
-  '김영숙': '현사',
-  '김명희': '현사',
+  '심인희': '현사',
+  '우봉진': '현사',
+  '강성순': '현사',
+  '최애숙': '현사',
+  '박점섭': '현사',
+  '맹강주': '현사',
+
   '중현': '현사',
 
   // 생활지로사
-  '신정숙': '생활지로사',
+  '김보향': '생활지로사',
+  '황화진': '생활지로사',
 
 };
 
@@ -33,7 +32,7 @@ export const USER_TITLES: Record<string, string> = {
  */
 export function getUserTitle(name: string | null | undefined): string {
   if (!name) return '도반';
-  
+
   // 이름 좌우 공백 제거 후 비교
   const cleanName = name.trim();
 

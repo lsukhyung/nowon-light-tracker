@@ -9,8 +9,9 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { api } from '@/lib/api';
-import { Event } from '@/types/training';
+import { Event, PersonalEvent } from '@/types/training';
 import { EventCongratulationModal } from '@/components/events/event-congratulation-modal';
+import { PersonalEventCongratulationModal } from '@/components/events/personal-event-congratulation-modal';
 
 export function PracticeForm({ onSave, userId, userName }: { onSave?: () => void; userId?: string; userName?: string }) {
   const {
@@ -28,6 +29,8 @@ export function PracticeForm({ onSave, userId, userName }: { onSave?: () => void
   const [isSaving, setIsSaving] = useState(false);
   const [newWinEvents, setNewWinEvents] = useState<Event[]>([]);
   const [showWinModal, setShowWinModal] = useState(false);
+  const [newAchieveEvents, setNewAchieveEvents] = useState<PersonalEvent[]>([]);
+  const [showAchieveModal, setShowAchieveModal] = useState(false);
 
   const activeItems = getActivePracticeItems();
   const todayLight = parseFloat(
@@ -76,7 +79,7 @@ export function PracticeForm({ onSave, userId, userName }: { onSave?: () => void
       // 저장 후 이벤트 당첨 취대츠 (userId가 있을 때만)
       if (userId) {
         try {
-          // 종로지원 전체 누적 빛 기준으로 이벤트 달성 여부 판별
+          // 노원지원 전체 누적 빛 기준으로 이벤트 달성 여부 판별
           const result = await api.checkEventWin(displayAllTimeTotal, userName || '');
           if (result.newWins && result.newWins.length > 0) {
             setNewWinEvents(result.newWins);
@@ -84,6 +87,17 @@ export function PracticeForm({ onSave, userId, userName }: { onSave?: () => void
           }
         } catch {
           // 이벤트 실패는 무시
+        }
+
+        // 개인 이벤트 달성 체크
+        try {
+          const achieveResult = await api.checkPersonalEventAchieve(displayMyTotalLight);
+          if (achieveResult.newAchievements && achieveResult.newAchievements.length > 0) {
+            setNewAchieveEvents(achieveResult.newAchievements);
+            setShowAchieveModal(true);
+          }
+        } catch {
+          // 개인 이벤트 실패는 무시
         }
       }
     } catch (error: any) {
@@ -109,8 +123,8 @@ export function PracticeForm({ onSave, userId, userName }: { onSave?: () => void
     lines.push('');
     lines.push(`☀️ 오늘 나의 빛: ${todayLight}${dailyGoal > 0 ? ` (목표대비 ${dailyAchievementRate}%)` : ''}`);
     lines.push(`☀️ 누적 나의 빛: ${displayMyTotalLight}${totalGoal > 0 ? ` (목표대비 ${totalAchievementRate}%)` : ''}`);
-    lines.push(`☀️ 오늘 종로지원의 빛: ${displayTodayTotalOrg}`);
-    lines.push(`☀️ 누적 종로지원의 빛: ${displayAllTimeTotal.toLocaleString()}`);
+    lines.push(`☀️ 오늘 노원지원의 빛: ${displayTodayTotalOrg}`);
+    lines.push(`☀️ 누적 노원지원의 빛: ${displayAllTimeTotal.toLocaleString()}`);
 
     const text = lines.join('\n');
 
@@ -221,11 +235,11 @@ export function PracticeForm({ onSave, userId, userName }: { onSave?: () => void
             </div>
             <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 font-extrabold text-slate-900 dark:text-white">
               <div className="flex justify-between">
-                <span>오늘 종로지원의 빛</span>
+                <span>오늘 노원지원의 빛</span>
                 <span>{displayTodayTotalOrg}</span>
               </div>
               <div className="flex justify-between mt-1.5">
-                <span>누적 종로지원의 빛</span>
+                <span>누적 노원지원의 빛</span>
                 <span>{displayAllTimeTotal.toLocaleString()}</span>
               </div>
             </div>
@@ -321,6 +335,15 @@ export function PracticeForm({ onSave, userId, userName }: { onSave?: () => void
           events={newWinEvents}
           currentUserId={userId}
           onClose={() => setShowWinModal(false)}
+        />
+      )}
+
+      {/* 실천 저장 시 개인 이벤트 달성 팝업 */}
+      {showAchieveModal && userId && (
+        <PersonalEventCongratulationModal
+          events={newAchieveEvents}
+          currentUserId={userId}
+          onClose={() => setShowAchieveModal(false)}
         />
       )}
     </>

@@ -19,7 +19,7 @@ import { format, subDays, subMonths } from 'date-fns';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
-import type { Event } from '@/types/training';
+import type { Event, PersonalEvent } from '@/types/training';
 
 interface ResetResult { email: string; name?: string; temporaryPassword: string; note?: string; }
 interface UserData {
@@ -179,7 +179,7 @@ function DailyTab({ users }: { users: UserData[] }) {
 }
 
 // ──────────────────────────────────────
-// Tab: ⑰ 종로지원 빛 통계 (전체 일자별)
+// Tab: ⑰ 노원지원 빛 통계 (전체 일자별)
 // ──────────────────────────────────────
 function TotalLightTab() {
   const [period, setPeriod] = useState<PeriodType>('week');
@@ -406,6 +406,150 @@ function HistoryDetailTab() {
 }
 
 // ──────────────────────────────────────
+// Tab: 개인 이벤트 관리
+// ──────────────────────────────────────
+const PREDEFINED_BOUQUETS = [
+  '/images/bouquets/bouquet-1.png',
+  '/images/bouquets/bouquet-2.png',
+  '/images/bouquets/bouquet-3.png'
+];
+
+function PersonalEventTab({ users }: { users: UserData[] }) {
+  const [events, setEvents] = useState<PersonalEvent[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [name, setName] = useState('');
+  const [lightThreshold, setLightThreshold] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchEvents = useCallback(async () => {
+    try { const d = await api.getPersonalEvents(); setEvents(d || []); }
+    catch { toast.error('개인 이벤트 목록 조회 실패'); }
+  }, []);
+
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+
+  const handleCreate = async () => {
+    if (!selectedUserId || !name.trim() || !lightThreshold) {
+      toast.error('사용자, 이름, 빛 수를 입력해주세요.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const randomBouquet = PREDEFINED_BOUQUETS[Math.floor(Math.random() * PREDEFINED_BOUQUETS.length)];
+      await api.createPersonalEvent({
+        userId: selectedUserId,
+        userName: getUserName(selectedUserId),
+        name: name.trim(),
+        lightThreshold: parseFloat(lightThreshold),
+        bouquetImageUrl: randomBouquet,
+      });
+      toast.success('개인 이벤트가 등록되었습니다.');
+      setName(''); setLightThreshold('');
+      await fetchEvents();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || '등록에 실패했습니다.');
+    } finally { setIsLoading(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('이 이벤트를 삭제하시겠습니까?')) return;
+    try {
+      await api.deletePersonalEvent(id);
+      toast.success('삭제되었습니다.');
+      await fetchEvents();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || '삭제에 실패했습니다.');
+    }
+  };
+
+  const getUserName = (userId: string) => {
+    const u = users.find(u => u.id === userId);
+    return u?.name || u?.email || userId.slice(0, 8);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* 등록 */}
+      <div className="border rounded-lg p-4 space-y-3">
+        <p className="text-sm font-semibold text-muted-foreground">개인 이벤트 설정</p>
+        <div className="space-y-2">
+          <div className="flex gap-2 items-end flex-wrap">
+            <div className="w-40 space-y-1">
+              <p className="text-xs text-muted-foreground">대상 도반</p>
+              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="도반 선택" /></SelectTrigger>
+                <SelectContent>
+                  {[...users].sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email)).map(u => (
+                    <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 min-w-36 space-y-1">
+              <p className="text-xs text-muted-foreground">이벤트 이름</p>
+              <Input
+                placeholder="예: 나의 100빛 달성"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCreate()}
+              />
+            </div>
+            <div className="w-32 space-y-1">
+              <p className="text-xs text-muted-foreground">빛 수 (목표)</p>
+              <Input
+                type="number"
+                placeholder="예: 100"
+                value={lightThreshold}
+                onChange={e => setLightThreshold(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCreate()}
+              />
+            </div>
+            <Button onClick={handleCreate} disabled={isLoading}>저장</Button>
+          </div>
+        </div>
+      </div>
+
+      {/* 목록 */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="bg-muted/50 px-3 py-2 text-sm font-semibold text-muted-foreground">개인 이벤트 리스트</div>
+        {events.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">등록된 개인 이벤트가 없습니다.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead><tr className="border-b bg-muted/30">
+              <th className="text-left px-3 py-2">대상</th>
+              <th className="text-left px-3 py-2">이름</th>
+              <th className="text-right px-3 py-2">목표 빛</th>
+              <th className="text-right px-3 py-2">달성 여부</th>
+              <th className="px-3 py-2"></th>
+            </tr></thead>
+            <tbody>
+              {events.map(e => (
+                <tr key={e.id} className="border-t">
+                  <td className="px-3 py-2 font-medium">{getUserName(e.userId)}</td>
+                  <td className="px-3 py-2">{e.name}</td>
+                  <td className="text-right px-3 py-2 text-amber-600 font-bold">{e.lightThreshold.toLocaleString()}빛</td>
+                  <td className="text-right px-3 py-2">
+                    {e.achievedAt
+                      ? <span className="text-green-600 font-semibold">달성 ({new Date(e.achievedAt).toLocaleDateString()})</span>
+                      : <span className="text-muted-foreground">진행 중</span>}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => handleDelete(e.id)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────
 // Tab: 이벤트 관리
 // ──────────────────────────────────────
 function EventTab() {
@@ -455,7 +599,7 @@ function EventTab() {
           <div className="flex-1 min-w-36 space-y-1">
             <p className="text-xs text-muted-foreground">이벤트 이름</p>
             <Input
-              placeholder="예: 종로지원 500빛 달성"
+              placeholder="예: 노원지원 500빛 달성"
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleCreate()}
@@ -615,6 +759,7 @@ function AdminPage() {
             <TabsTrigger value="user">도반별</TabsTrigger>
             <TabsTrigger value="history">역사 통계</TabsTrigger>
             <TabsTrigger value="history-detail">전체 실천활동</TabsTrigger>
+            <TabsTrigger value="personal-events">개인 이벤트</TabsTrigger>
             <TabsTrigger value="events">이벤트</TabsTrigger>
             <TabsTrigger value="password" className="relative">
               <div className="flex items-center justify-center gap-1.5">
@@ -641,7 +786,7 @@ function AdminPage() {
           <TabsContent value="total">
             <Card>
               <CardHeader>
-                <CardTitle>종로지원 빛 모으기 역사 통계</CardTitle>
+                <CardTitle>노원지원 빛 모으기 역사 통계</CardTitle>
                 <CardDescription>전체 도반의 기간별 빛 합계 그래프입니다.</CardDescription>
               </CardHeader>
               <CardContent><TotalLightTab /></CardContent>
@@ -663,7 +808,7 @@ function AdminPage() {
           <TabsContent value="history">
             <Card>
               <CardHeader>
-                <CardTitle>종로지원 빛 모으기 역사 및 전체 통계</CardTitle>
+                <CardTitle>노원지원 빛 모으기 역사 및 전체 통계</CardTitle>
                 <CardDescription>도반 × 일자 행렬로 기간별 빛 현황을 확인합니다.</CardDescription>
               </CardHeader>
               <CardContent><HistoryTab /></CardContent>
@@ -674,10 +819,21 @@ function AdminPage() {
           <TabsContent value="history-detail">
             <Card>
               <CardHeader>
-                <CardTitle>종로지원 빛 모으기 역사 실천활동 전체 통계</CardTitle>
+                <CardTitle>노원지원 빛 모으기 역사 실천활동 전체 통계</CardTitle>
                 <CardDescription>도반 × 실천활동 × 일자 행렬로 상세 통계를 확인합니다.</CardDescription>
               </CardHeader>
               <CardContent><HistoryDetailTab /></CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 개인 이벤트 관리 */}
+          <TabsContent value="personal-events">
+            <Card>
+              <CardHeader>
+                <CardTitle>개인 이벤트 관리</CardTitle>
+                <CardDescription>도반별 개인 빛 수 달성 이벤트를 등록하고 관리합니다.</CardDescription>
+              </CardHeader>
+              <CardContent><PersonalEventTab users={users} /></CardContent>
             </Card>
           </TabsContent>
 

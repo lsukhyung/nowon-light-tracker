@@ -84,6 +84,23 @@ export interface UserDailySummary {
 }
 
 // ============================================================
+// 개인 이벤트 타입 정의
+// ============================================================
+
+export interface PersonalEvent {
+  id: string;
+  userId: string;
+  userName: string | null;
+  name: string;
+  lightThreshold: number;
+  isActive: boolean;
+  bouquetImageUrl: string | null;
+  createdAt: string;
+  achievedLight: number | null;
+  achievedAt: string | null;
+}
+
+// ============================================================
 // 기존 타입 (하위 호환성 유지)
 // ============================================================
 export type Grade = 'A' | 'B' | 'C' | 'D' | 'E' | 'F';

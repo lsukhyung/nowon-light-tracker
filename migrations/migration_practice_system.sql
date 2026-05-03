@@ -112,7 +112,7 @@ INSERT INTO public.practice_items (name, description, light_per_unit, is_default
     ('행공',         '24분 1빛',        1.0, TRUE, NULL),
     ('본수련',       '24분 1빛',        1.0, TRUE, NULL),
     ('현무',         '24분 1빛',        1.0, TRUE, NULL),
-    ('호신강기',     '1회 1빛',         1.0, TRUE, NULL),
+    ('석문기공',     '1회 1빛',         1.0, TRUE, NULL),
     ('석문도서봉독', '24분 1빛',        1.0, TRUE, NULL),
     ('도장출석',     '1회 1빛',         1.0, TRUE, NULL),
     ('석문강좌 시청','1강 1빛',          1.0, TRUE, NULL),

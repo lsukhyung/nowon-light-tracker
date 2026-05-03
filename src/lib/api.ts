@@ -311,6 +311,28 @@ class ApiClient {
     const { data } = await this.client.post('/api/events/check-win', { totalLight, userName });
     return data; // { newWins: Event[] }
   }
+
+  // ─── 개인 이벤트 API ─────────────────────────────────────────
+  async getPersonalEvents() {
+    const { data } = await this.client.get('/api/personal-events');
+    return data;
+  }
+
+  async createPersonalEvent(payload: { userId: string; userName: string; name: string; lightThreshold: number; bouquetImageUrl?: string }) {
+    const { data } = await this.client.post('/api/personal-events', payload);
+    return data;
+  }
+
+  async deletePersonalEvent(id: string) {
+    const { data } = await this.client.delete(`/api/personal-events?id=${id}`);
+    return data;
+  }
+
+  /** 저장 후 개인 이벤트 달성 확인 */
+  async checkPersonalEventAchieve(totalLight: number) {
+    const { data } = await this.client.post('/api/personal-events/check-achieve', { totalLight });
+    return data; // { newAchievements: PersonalEvent[] }
+  }
 }
 
 export const api = new ApiClient();

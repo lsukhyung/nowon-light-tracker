@@ -141,7 +141,7 @@ export function EventCongratulationModal({ events, currentUserId, onClose }: Pro
           <div className="absolute top-1/2 -right-2 text-5xl opacity-20 animate-pulse -rotate-45">🎉</div>
 
           <p className="text-lg md:text-xl font-bold text-slate-800 dark:text-white leading-snug">
-            종로지원 <span className="text-amber-500 font-extrabold text-2xl">{event.lightThreshold.toLocaleString()}</span>번째 빛 달성!!
+            노원지원 <span className="text-amber-500 font-extrabold text-2xl">{event.lightThreshold.toLocaleString()}</span>번째 빛 달성!!
           </p>
           
           <div className="my-5 p-4 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-100 dark:border-amber-900/50 shadow-inner relative">
