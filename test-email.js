@@ -17,7 +17,7 @@ async function testEmail(email) {
 
 async function run() {
     await testEmail('testy@example.com');
-    await testEmail('user_01032141050@jongrolight.com');
+    await testEmail('user_01032141050@nowonlight.com');
     await testEmail('01032141050@example.com');
 }
 run();

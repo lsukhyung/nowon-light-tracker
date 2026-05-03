@@ -8,7 +8,7 @@ const supabase = createClient(
 
 async function test() {
   const { data, error } = await supabase.auth.signUp({
-    email: 'user_01032141050@jongrolight.com',
+    email: 'user_01032141050@nowonlight.com',
     password: 'password123',
   });
   console.log(data, error);
