@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { signUp } from '@/lib/supabase';
+import { signUp, getSupabaseAdminAny } from '@/lib/supabase';
 import { isAdminEmail } from '@/lib/admin';
 
 export async function POST(request: NextRequest) {
@@ -36,6 +36,26 @@ export async function POST(request: NextRequest) {
 
     // 서버 사이드에서 관리자 여부 확인 (보안)
     const isAdmin = isAdminEmail(result.user.email);
+
+    // 기본 실천과제 자동 선택
+    try {
+      const admin = getSupabaseAdminAny();
+      const { data: defaultItems } = await admin
+        .from('practice_items')
+        .select('id')
+        .eq('is_default', true);
+
+      if (defaultItems && defaultItems.length > 0) {
+        const settings = defaultItems.map((item: any) => ({
+          user_id: result.user!.id,
+          practice_item_id: item.id,
+          is_active: true,
+        }));
+        await admin.from('user_practice_settings').upsert(settings, { onConflict: 'user_id,practice_item_id' });
+      }
+    } catch {
+      // 기본 과제 설정 실패는 무시 (회원가입 자체는 성공)
+    }
 
     // 저장용 전화번호 (도메인 및 접두사 제거)
     const displayEmail = result.user.email?.replace('@gmail.com', '').replace(/^user_/, '') || email;

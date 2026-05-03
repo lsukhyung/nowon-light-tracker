@@ -90,6 +90,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: '실천과제 생성에 실패했습니다.' }, { status: 500 });
   }
 
+  // 생성된 과제를 자동으로 선택 상태로 등록
+  const admin = getSupabaseAdminAny();
+  await admin
+    .from('user_practice_settings')
+    .upsert({ user_id: user.id, practice_item_id: data.id, is_active: true }, { onConflict: 'user_id,practice_item_id' });
+
   return NextResponse.json({
     id: data.id,
     name: data.name,
