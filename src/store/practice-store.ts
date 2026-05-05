@@ -189,6 +189,7 @@ export const usePracticeStore = create<PracticeStore>()(
       createPracticeItem: async (item) => {
         const created = await api.createPracticeItem(item);
         set((state) => ({ practiceItems: [...state.practiceItems, created] }));
+        await get().fetchUserSettings();
         return created;
       },
 

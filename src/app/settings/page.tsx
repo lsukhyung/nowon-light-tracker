@@ -123,12 +123,11 @@ function SettingsPage() {
         description: newItemDescription.trim() || undefined,
         lightPerUnit: lightVal,
       });
-      // 새 과제 목록 다시 조회 후 state 동기화는 fetchUserSettings에서 처리
       setShowAddModal(false);
       setNewItemName('');
       setNewItemDescription('');
       setNewItemLight('');
-      toast.success('실천과제가 추가되었습니다. 저장 버튼을 눌러 선택을 완료하세요.');
+      toast.success('실천과제가 선택된 상태로 추가되었습니다.');
     } catch (error: any) {
       toast.error('과제 추가에 실패했습니다.');
     } finally {
