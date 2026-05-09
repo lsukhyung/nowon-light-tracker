@@ -16,7 +16,7 @@ CREATE TABLE public.practice_items (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,                   -- 실천 기준 설명 (예: "1회 0.5빛", "24분 1빛")
-    light_per_unit DECIMAL(5,1) NOT NULL DEFAULT 1,
+    light_per_unit DECIMAL(5,2) NOT NULL DEFAULT 1,
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,  -- NULL → 시스템 기본
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
@@ -69,7 +69,7 @@ CREATE TABLE public.daily_practice_logs (
     practice_item_id UUID NOT NULL REFERENCES public.practice_items(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     count INTEGER NOT NULL DEFAULT 0,
-    light DECIMAL(7,1) NOT NULL DEFAULT 0,
+    light DECIMAL(7,2) NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     UNIQUE (user_id, practice_item_id, date)
@@ -91,8 +91,8 @@ CREATE POLICY "Users can manage their own logs"
 CREATE TABLE public.user_goals (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
-    daily_light_goal DECIMAL(7,1) NOT NULL DEFAULT 0,   -- 1일 목표 빛
-    total_light_goal DECIMAL(10,1) NOT NULL DEFAULT 0,  -- 누적 목표 빛
+    daily_light_goal DECIMAL(7,2) NOT NULL DEFAULT 0,   -- 1일 목표 빛
+    total_light_goal DECIMAL(10,2) NOT NULL DEFAULT 0,  -- 누적 목표 빛
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
