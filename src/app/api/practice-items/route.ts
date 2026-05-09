@@ -92,9 +92,13 @@ export async function POST(request: NextRequest) {
 
   // 생성된 과제를 자동으로 선택 상태로 등록
   const admin = getSupabaseAdminAny();
-  await admin
+  const { error: settingsError } = await admin
     .from('user_practice_settings')
     .upsert({ user_id: user.id, practice_item_id: data.id, is_active: true }, { onConflict: 'user_id,practice_item_id' });
+
+  if (settingsError) {
+    console.error('실천과제 자동 선택 등록 실패:', settingsError);
+  }
 
   return NextResponse.json({
     id: data.id,

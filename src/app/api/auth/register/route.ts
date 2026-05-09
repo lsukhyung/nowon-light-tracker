@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
         }));
         await admin.from('user_practice_settings').upsert(settings, { onConflict: 'user_id,practice_item_id' });
       }
-    } catch {
-      // 기본 과제 설정 실패는 무시 (회원가입 자체는 성공)
+    } catch (err) {
+      console.error('기본 실천과제 자동 선택 실패:', err);
     }
 
     // 저장용 전화번호 (도메인 및 접두사 제거)
