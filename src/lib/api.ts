@@ -123,6 +123,17 @@ class ApiClient {
     return data;
   }
 
+  async withdraw() {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : '';
+    const res = await fetch('/api/auth/withdraw', {
+      method: 'DELETE',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    const data = await res.json();
+    if (!res.ok) throw { response: { data } };
+    return data;
+  }
+
   async requestPasswordReset(email: string) {
     const { data } = await this.client.post('/api/auth/forgot-password', { email });
     return data;

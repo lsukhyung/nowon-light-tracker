@@ -23,6 +23,7 @@ interface AuthState {
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   changePassword: (newPassword: string, currentPassword?: string) => Promise<void>;
+  withdraw: () => Promise<void>;
   updateTrainingGoal: (goal: string) => Promise<void>;
   fetchCurrentUser: () => Promise<void>;
   refreshSession: () => Promise<boolean>;
@@ -106,6 +107,28 @@ export const useAuthStore = create<AuthState>()(
         } catch (error: any) {
           set({ isLoading: false });
           throw error.response?.data?.message || '비밀번호 변경에 실패했습니다.';
+        }
+      },
+
+      withdraw: async () => {
+        set({ isLoading: true });
+        try {
+          await api.withdraw();
+        } catch (error: any) {
+          set({ isLoading: false });
+          throw error.response?.data?.message || '회원탈퇴에 실패했습니다.';
+        }
+        // Clear auth state regardless of API response since user is deleted
+        set({
+          user: null,
+          token: null,
+          refreshToken: null,
+          isAuthenticated: false,
+          isLoading: false,
+        });
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('auth-storage');
         }
       },
 

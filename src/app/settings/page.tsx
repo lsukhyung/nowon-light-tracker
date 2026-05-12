@@ -52,6 +52,8 @@ function SettingsPage() {
   const [newItemLight, setNewItemLight] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isAddingItem, setIsAddingItem] = useState(false);
+  const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   const loadData = useCallback(async () => {
     await Promise.all([fetchPracticeItems(), fetchUserSettings()]);
@@ -149,6 +151,19 @@ function SettingsPage() {
       toast.success('과제가 삭제되었습니다.');
     } catch {
       toast.error('삭제에 실패했습니다.');
+    }
+  };
+
+  const handleWithdraw = async () => {
+    setIsWithdrawing(true);
+    try {
+      await useAuthStore.getState().withdraw();
+      toast.success('회원탈퇴가 완료되었습니다.');
+      window.location.href = '/login';
+    } catch (error: any) {
+      toast.error(error || '회원탈퇴에 실패했습니다.');
+      setIsWithdrawing(false);
+      setShowWithdrawDialog(false);
     }
   };
 
@@ -339,8 +354,51 @@ function SettingsPage() {
           <div id="change-password" className="scroll-mt-8">
             <ChangePasswordForm />
           </div>
+
+          {/* ⑯ 회원탈퇴 */}
+          <Card className="border-red-200 dark:border-red-800">
+            <CardHeader>
+              <CardTitle className="text-red-600 dark:text-red-400">회원탈퇴</CardTitle>
+              <CardDescription>
+                회원탈퇴 시 모든 데이터(수련 기록, 실천 기록, 개인 이벤트 등)가 삭제되며 복구할 수 없습니다.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="destructive"
+                onClick={() => setShowWithdrawDialog(true)}
+                className="w-full sm:w-auto"
+              >
+                회원탈퇴
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
+
+      {/* ⑯ 회원탈퇴 확인 모달 */}
+      <Dialog open={showWithdrawDialog} onOpenChange={setShowWithdrawDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>회원탈퇴 확인</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              정말로 탈퇴하시겠습니까? 모든 데이터가 영구적으로 삭제되며 복구할 수 없습니다.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowWithdrawDialog(false)}>취소</Button>
+            <Button
+              variant="destructive"
+              onClick={handleWithdraw}
+              disabled={isWithdrawing}
+            >
+              {isWithdrawing ? '처리 중...' : '탈퇴하기'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ⑮ 실천과제 추가 모달 */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
