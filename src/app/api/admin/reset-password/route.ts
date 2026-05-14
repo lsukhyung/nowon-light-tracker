@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 관리자 확인 완료 - 임시 비밀번호 생성
-    const temporaryPassword = generateTemporaryPassword(12);
+    const temporaryPassword = generateTemporaryPassword();
 
     // Supabase Admin API를 사용하여 사용자의 비밀번호를 업데이트
     try {
