@@ -39,7 +39,7 @@ interface PracticeStore {
   fetchPracticeItems: () => Promise<void>;
   fetchUserSettings: () => Promise<void>;
   fetchLogsForDate: (date: string) => Promise<void>;
-  fetchTotalLight: () => Promise<void>;
+  fetchTotalLight: (date?: string) => Promise<void>;
   setSelectedDate: (date: string) => void;
 
   /** 단건 횟수 변경 (즉시 서버 저장) */
