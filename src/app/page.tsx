@@ -77,7 +77,7 @@ function Dashboard() {
       fetchPracticeItems(),
       fetchUserSettings(),
       fetchLogsForDate(selectedDate),
-      fetchTotalLight(),
+      fetchTotalLight(selectedDate),
     ]).finally(() => {
       setDataReady(true);
     });
@@ -94,17 +94,6 @@ function Dashboard() {
       setHasInitialScrolled(true);
     }
   }, [dataReady, hasInitialScrolled, scrollToPracticeForm]);
-
-  // 모바일 웹앱: 백그라운드에서 돌아오면 페이지 새로고침
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        window.location.reload();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
 
   // 관리자 접속 시 비밀번호 초기화 요청 알림
   useEffect(() => {
@@ -140,7 +129,8 @@ function Dashboard() {
   const handleDateSelect = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     setSelectedDate(dateStr);
-    
+    fetchTotalLight(dateStr);
+
     // 캘린더 라이브러리(react-day-picker)의 내부 포커스 복귀 로직에 의해
     // 스크롤이 다시 달력으로 당겨지는 현상 방지:
     // 1. 현재 포커스된 달력 버튼에서 포커스 해제

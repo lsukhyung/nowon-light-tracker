@@ -259,8 +259,8 @@ class ApiClient {
     return data;
   }
 
-  async getTotalLight() {
-    const { data } = await this.client.get('/api/stats', { params: { type: 'total-light' } });
+  async getTotalLight(date?: string) {
+    const { data } = await this.client.get('/api/stats', { params: { type: 'total-light', date } });
     return data;
   }
 

@@ -113,9 +113,9 @@ export const usePracticeStore = create<PracticeStore>()(
         }
       },
 
-      fetchTotalLight: async () => {
+      fetchTotalLight: async (date?: string) => {
         try {
-          const data = await api.getTotalLight();
+          const data = await api.getTotalLight(date || get().selectedDate);
           set({ totalLightInfo: data });
         } catch (error: any) {
           console.error('fetchTotalLight error:', error);
@@ -175,7 +175,7 @@ export const usePracticeStore = create<PracticeStore>()(
           await api.savePracticeLogsBatch(selectedDate, logs);
           // 저장 후 서버에서 재조회
           await get().fetchLogsForDate(selectedDate);
-          await get().fetchTotalLight();
+          await get().fetchTotalLight(selectedDate);
           // 저장 완료되었으므로 로컬 savedTodayLight도 현재 todayLogs 기준으로 업데이트
           set({ savedTodayLight: get().getTodayTotalLight() });
         } catch (error: any) {

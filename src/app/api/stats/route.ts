@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, getSupabaseAdminAny } from '@/lib/supabase';
 
-interface LightRow {
-  light: number | null;
-}
-
 interface PracticeItemRow {
   id: string;
   name: string;
@@ -51,33 +47,6 @@ export async function GET(request: NextRequest) {
   const admin = getSupabaseAdminAny();
   const pageSize = 1000;
 
-  async function fetchAllLightRows(filters?: { date?: string; userId?: string }) {
-    const allRows: LightRow[] = [];
-    let fromIndex = 0;
-
-    while (true) {
-      let query = admin
-        .from('daily_practice_logs')
-        .select('light')
-        .order('id', { ascending: true });
-
-      if (filters?.date) query = query.eq('date', filters.date);
-      if (filters?.userId) query = query.eq('user_id', filters.userId);
-
-      const { data, error } = await query.range(fromIndex, fromIndex + pageSize - 1);
-
-      if (error) throw error;
-      if (!data || data.length === 0) break;
-
-      allRows.push(...(data as LightRow[]));
-      if (data.length < pageSize) break;
-
-      fromIndex += pageSize;
-    }
-
-    return allRows;
-  }
-
   async function fetchAllPracticeLogs(userId: string, start?: string | null, end?: string | null) {
     const allRows: PracticeLogRow[] = [];
     let fromIndex = 0;
@@ -112,25 +81,23 @@ export async function GET(request: NextRequest) {
 
   // ─── 1. 전체 빛 합계 ───────────────────────────────────────────
   if (type === 'total-light') {
-    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const dateParam = searchParams.get('date');
+    const today = dateParam || new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
-    const todayData = await fetchAllLightRows({ date: today });
-    const allData = await fetchAllLightRows();
+    const { data: sums, error: sumsError } = await admin
+      .rpc('get_light_sums', { p_user_id: user.id, p_date: today });
 
-    const todayTotalLight = todayData.reduce((sum, row) => sum + (row.light || 0), 0);
-    const allTimeTotalLight = allData.reduce((sum, row) => sum + (row.light || 0), 0);
+    if (sumsError) {
+      console.error('get_light_sums error:', sumsError);
+      return NextResponse.json({ message: '통계를 불러오는데 실패했습니다.' }, { status: 500 });
+    }
 
-    const myTodayData = await fetchAllLightRows({ userId: user.id, date: today });
-    const myTodayLight = myTodayData.reduce((sum, row) => sum + (row.light || 0), 0);
-
-    const myAllData = await fetchAllLightRows({ userId: user.id });
-    const myTotalLight = myAllData.reduce((sum, row) => sum + (row.light || 0), 0);
-
+    const row = sums?.[0] || sums;
     return NextResponse.json({
-      todayTotalLight: parseFloat(todayTotalLight.toFixed(2)),
-      allTimeTotalLight: parseFloat(allTimeTotalLight.toFixed(2)),
-      myTodayLight: parseFloat(myTodayLight.toFixed(2)),
-      myTotalLight: parseFloat(myTotalLight.toFixed(2)),
+      todayTotalLight: parseFloat(Number(row?.today_total_light || 0).toFixed(2)),
+      allTimeTotalLight: parseFloat(Number(row?.all_time_total_light || 0).toFixed(2)),
+      myTodayLight: parseFloat(Number(row?.my_today_light || 0).toFixed(2)),
+      myTotalLight: parseFloat(Number(row?.my_total_light || 0).toFixed(2)),
     });
   }
 
