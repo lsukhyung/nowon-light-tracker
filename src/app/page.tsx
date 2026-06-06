@@ -142,6 +142,11 @@ function Dashboard() {
     setTimeout(() => scrollToPracticeForm(), 150);
   };
 
+  const handlePracticeDateChange = (dateStr: string) => {
+    fetchTotalLight(dateStr);
+    setTimeout(() => scrollToPracticeForm(), 150);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-950 dark:to-slate-900">
       {/* 데이터 로딩 중 오버레이 스피너 */}
@@ -237,7 +242,12 @@ function Dashboard() {
         </div>
 
         {/* 실천 현황 폼 (제일 아래로 이동) */}
-        <PracticeForm onSave={handleSaveComplete} userId={user?.id} userName={user?.name} />
+        <PracticeForm
+          onSave={handleSaveComplete}
+          onDateChange={handlePracticeDateChange}
+          userId={user?.id}
+          userName={user?.name}
+        />
       </div>
 
       {/* 이벤트 당첨 팝업 */}

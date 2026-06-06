@@ -3,19 +3,31 @@
 import { usePracticeStore } from '@/store/practice-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Save, Sun, Minus, Plus } from 'lucide-react';
+import { Loader2, Save, Sun, Minus, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
-import { format } from 'date-fns';
+import { format, addDays, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { api } from '@/lib/api';
 import { Event, PersonalEvent } from '@/types/training';
 import { EventCongratulationModal } from '@/components/events/event-congratulation-modal';
 import { PersonalEventCongratulationModal } from '@/components/events/personal-event-congratulation-modal';
+import { useSwipeHorizontal } from '@/hooks/use-swipe-horizontal';
 
-export function PracticeForm({ onSave, userId, userName }: { onSave?: () => void; userId?: string; userName?: string }) {
+export function PracticeForm({
+  onSave,
+  onDateChange,
+  userId,
+  userName,
+}: {
+  onSave?: () => void;
+  onDateChange?: (date: string) => void;
+  userId?: string;
+  userName?: string;
+}) {
   const {
     selectedDate,
+    setSelectedDate,
     goal,
     totalLightInfo,
     savedTodayLight,
@@ -31,6 +43,34 @@ export function PracticeForm({ onSave, userId, userName }: { onSave?: () => void
   const [showWinModal, setShowWinModal] = useState(false);
   const [newAchieveEvents, setNewAchieveEvents] = useState<PersonalEvent[]>([]);
   const [showAchieveModal, setShowAchieveModal] = useState(false);
+
+  const goToDate = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    if (dateStr === selectedDate) return;
+    setSelectedDate(dateStr);
+    onDateChange?.(dateStr);
+  };
+
+  const handlePrevDay = () => {
+    try {
+      goToDate(addDays(parseISO(selectedDate), -1));
+    } catch {
+      void 0;
+    }
+  };
+
+  const handleNextDay = () => {
+    try {
+      goToDate(addDays(parseISO(selectedDate), 1));
+    } catch {
+      void 0;
+    }
+  };
+
+  useSwipeHorizontal({
+    onSwipeLeft: handleNextDay,
+    onSwipeRight: handlePrevDay,
+  });
 
   const activeItems = getActivePracticeItems();
   const todayLight = parseFloat(
@@ -178,9 +218,38 @@ export function PracticeForm({ onSave, userId, userName }: { onSave?: () => void
     <>
       <Card id="practice-form" className="scroll-mt-20">
         <CardHeader className="pb-0 mb-0">
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <Sun className="w-5 h-5 text-yellow-500" />
-            나의 빛 밝히기 실천 현황({formattedDate})
+          <CardTitle className="flex items-center justify-between gap-2 text-base sm:text-lg">
+            <span className="flex items-center gap-2 min-w-0">
+              <Sun className="w-5 h-5 text-yellow-500 shrink-0" />
+              <span className="truncate">나의 빛 밝히기 실천 현황</span>
+            </span>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 -mr-1"
+                onClick={handlePrevDay}
+                aria-label="이전 날"
+                title="이전 날"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="text-sm sm:text-base font-semibold tabular-nums min-w-[100px] sm:min-w-[120px] text-center">
+                {formattedDate}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 -ml-1"
+                onClick={handleNextDay}
+                aria-label="다음 날"
+                title="다음 날"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-0 pt-0 pb-6">
