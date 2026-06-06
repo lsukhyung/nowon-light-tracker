@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Save, Sun, Minus, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format, addDays, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { api } from '@/lib/api';
@@ -44,11 +44,17 @@ export function PracticeForm({
   const [newAchieveEvents, setNewAchieveEvents] = useState<PersonalEvent[]>([]);
   const [showAchieveModal, setShowAchieveModal] = useState(false);
 
+  const [dateVisible, setDateVisible] = useState(true);
+
   const goToDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     if (dateStr === selectedDate) return;
-    setSelectedDate(dateStr);
-    onDateChange?.(dateStr);
+    setDateVisible(false);
+    setTimeout(() => {
+      setSelectedDate(dateStr);
+      onDateChange?.(dateStr);
+      setDateVisible(true);
+    }, 150);
   };
 
   const handlePrevDay = () => {
@@ -61,7 +67,9 @@ export function PracticeForm({
 
   const handleNextDay = () => {
     try {
-      goToDate(addDays(parseISO(selectedDate), 1));
+      const next = addDays(parseISO(selectedDate), 1);
+      if (next > new Date()) return;
+      goToDate(next);
     } catch {
       void 0;
     }
@@ -223,7 +231,12 @@ export function PracticeForm({
               <Sun className="w-5 h-5 text-yellow-500 shrink-0" />
               <span className="truncate">나의 빛 밝히기 실천 현황</span>
             </span>
-            <div className="flex items-center gap-1 shrink-0">
+            <span
+              className={`text-sm sm:text-base font-semibold tabular-nums inline-block transition-opacity duration-150 ${dateVisible ? 'opacity-100' : 'opacity-0'}`}
+            >
+              {formattedDate}
+            </span>
+            <div className="hidden sm:flex items-center gap-1 shrink-0 ml-2">
               <Button
                 type="button"
                 variant="ghost"
@@ -235,9 +248,6 @@ export function PracticeForm({
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <span className="text-sm sm:text-base font-semibold tabular-nums min-w-[100px] sm:min-w-[120px] text-center">
-                {formattedDate}
-              </span>
               <Button
                 type="button"
                 variant="ghost"
