@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Save, Sun, Minus, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { format, addDays, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { api } from '@/lib/api';

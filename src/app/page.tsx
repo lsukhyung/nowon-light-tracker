@@ -126,7 +126,7 @@ function Dashboard() {
     }
   }, [user?.isAdmin, dataReady]);
 
-  const handleDateSelect = (date: Date) => {
+  const handleDateSelect = useCallback((date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     setSelectedDate(dateStr);
     fetchTotalLight(dateStr);
@@ -140,12 +140,12 @@ function Dashboard() {
 
     // 2. 렌더링이 완전히 끝난 후 스크롤되도록 지연 시간 확보
     setTimeout(() => scrollToPracticeForm(), 150);
-  };
+  }, [setSelectedDate, fetchTotalLight, scrollToPracticeForm]);
 
-  const handlePracticeDateChange = (dateStr: string) => {
+  const handlePracticeDateChange = useCallback((dateStr: string) => {
     fetchTotalLight(dateStr);
     setTimeout(() => scrollToPracticeForm(), 150);
-  };
+  }, [scrollToPracticeForm, fetchTotalLight]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-950 dark:to-slate-900">

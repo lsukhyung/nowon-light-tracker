@@ -115,17 +115,6 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-@keyframes date-change {
-  0% {
-    opacity: 0;
-    transform: translateX(8px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;

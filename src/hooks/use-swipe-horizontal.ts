@@ -16,10 +16,6 @@ interface UseSwipeHorizontalOptions {
 const isInteractive = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
   return (
-    target.tagName === 'INPUT' ||
-    target.tagName === 'TEXTAREA' ||
-    target.tagName === 'SELECT' ||
-    target.tagName === 'BUTTON' ||
     target.closest('button') !== null ||
     target.closest('input') !== null ||
     target.closest('textarea') !== null ||
@@ -108,9 +104,10 @@ export function useSwipeHorizontal({
       const dy = touch.clientY - startY.current;
       const elapsed = Date.now() - startTime.current;
 
+      const wasLocked = locked.current;
       reset();
 
-      if (locked.current === 'v') return;
+      if (wasLocked === 'v') return;
       if (Math.abs(dy) > maxVertical) return;
       if (elapsed > maxDuration) return;
       if (Math.abs(dx) < threshold) return;
