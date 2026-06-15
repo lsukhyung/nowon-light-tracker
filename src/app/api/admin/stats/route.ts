@@ -355,30 +355,47 @@ export async function GET(request: NextRequest) {
     const { users } = await getUsersWithGoals();
     const logs = await fetchAllHistoryDetailRows(start, end);
 
-    const dateSet = new Set<string>();
+    // 도반별 현재 선택(active) 실천과제 조회
+    const { data: settingsRows } = await admin
+      .from('user_practice_settings')
+      .select('user_id, practice_item_id, practice_items(name)')
+      .eq('is_active', true);
+    const userItemsMap: Record<string, string[]> = {};
     const itemNameMap: Record<string, string> = {};
+    for (const s of (settingsRows as any[] || [])) {
+      if (!userItemsMap[s.user_id]) userItemsMap[s.user_id] = [];
+      userItemsMap[s.user_id].push(s.practice_item_id);
+      const pi = Array.isArray(s.practice_items) ? s.practice_items[0] : s.practice_items;
+      itemNameMap[s.practice_item_id] = pi?.name || s.practice_item_id;
+    }
+
+    const dateSet = new Set<string>();
     // user → item → date → light
     const matrix: Record<string, Record<string, Record<string, number>>> = {};
     for (const log of (logs || [])) {
       dateSet.add(log.date);
       const practiceItem = Array.isArray(log.practice_items) ? log.practice_items[0] : log.practice_items;
-      itemNameMap[log.practice_item_id] = practiceItem?.name || log.practice_item_id;
+      if (practiceItem?.name) itemNameMap[log.practice_item_id] = practiceItem.name;
       if (!matrix[log.user_id]) matrix[log.user_id] = {};
       if (!matrix[log.user_id][log.practice_item_id]) matrix[log.user_id][log.practice_item_id] = {};
       const prev = matrix[log.user_id][log.practice_item_id][log.date] || 0;
       matrix[log.user_id][log.practice_item_id][log.date] = parseFloat((prev + (log.light || 0)).toFixed(2));
     }
     const dates = [...dateSet].sort();
-    const itemIds = Object.keys(itemNameMap);
 
     const rows = [];
     for (const u of users) {
+      // 현재 선택한 과제 ∪ 기간 내 로그가 있는 과제
+      const itemIdSet = new Set<string>(userItemsMap[u.id] || []);
+      const logged = matrix[u.id] ? Object.keys(matrix[u.id]) : [];
+      for (const id of logged) itemIdSet.add(id);
+      const itemIds = [...itemIdSet];
       for (const itemId of itemIds) {
         rows.push({
           userId: u.id,
           userName: u.name || u.email,
           practiceItemId: itemId,
-          practiceItemName: itemNameMap[itemId],
+          practiceItemName: itemNameMap[itemId] || itemId,
           byDate: Object.fromEntries(dates.map(d => [d, matrix[u.id]?.[itemId]?.[d] || 0])),
         });
       }
