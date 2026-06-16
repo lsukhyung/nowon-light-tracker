@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, getSupabaseAdminAny } from '@/lib/supabase';
 import { isAdminEmail } from '@/lib/admin';
+import { buildHistoryDetailMatrix } from '@/lib/admin-history';
 
 interface UserRow {
   id: string;
@@ -36,14 +37,6 @@ interface HistoryRow {
   user_id: string;
   date: string;
   light: number | null;
-}
-
-interface HistoryDetailRow {
-  user_id: string;
-  date: string;
-  light: number | null;
-  practice_item_id: string;
-  practice_items?: { name?: string | null } | { name?: string | null }[] | null;
 }
 
 async function getUserFromToken(token: string) {
@@ -200,34 +193,6 @@ export async function GET(request: NextRequest) {
     return allRows;
   }
 
-  async function fetchAllHistoryDetailRows(start?: string | null, end?: string | null) {
-    const allRows: HistoryDetailRow[] = [];
-    let fromIndex = 0;
-
-    while (true) {
-      let query = admin
-        .from('daily_practice_logs')
-        .select('user_id, date, light, practice_item_id, practice_items(name)')
-        .order('date')
-        .order('id', { ascending: true });
-
-      if (start) query = query.gte('date', start);
-      if (end) query = query.lte('date', end);
-
-      const { data, error } = await query.range(fromIndex, fromIndex + pageSize - 1);
-
-      if (error) throw error;
-      if (!data || data.length === 0) break;
-
-      allRows.push(...(data as HistoryDetailRow[]));
-      if (data.length < pageSize) break;
-
-      fromIndex += pageSize;
-    }
-
-    return allRows;
-  }
-
   // ─── 사용자 목록 + 목표 조회 공통 함수 ────────────────────────
   async function getUsersWithGoals() {
     const { data: users } = await admin
@@ -353,35 +318,7 @@ export async function GET(request: NextRequest) {
     const start = searchParams.get('start');
     const end = searchParams.get('end');
     const { users } = await getUsersWithGoals();
-    const logs = await fetchAllHistoryDetailRows(start, end);
-
-    // 도반별 현재 선택(active) 실천과제 조회
-    const { data: settingsRows } = await admin
-      .from('user_practice_settings')
-      .select('user_id, practice_item_id, practice_items(name)')
-      .eq('is_active', true);
-    const userItemsMap: Record<string, string[]> = {};
-    const itemNameMap: Record<string, string> = {};
-    for (const s of (settingsRows as any[] || [])) {
-      if (!userItemsMap[s.user_id]) userItemsMap[s.user_id] = [];
-      userItemsMap[s.user_id].push(s.practice_item_id);
-      const pi = Array.isArray(s.practice_items) ? s.practice_items[0] : s.practice_items;
-      itemNameMap[s.practice_item_id] = pi?.name || s.practice_item_id;
-    }
-
-    const dateSet = new Set<string>();
-    // user → item → date → light
-    const matrix: Record<string, Record<string, Record<string, number>>> = {};
-    for (const log of (logs || [])) {
-      dateSet.add(log.date);
-      const practiceItem = Array.isArray(log.practice_items) ? log.practice_items[0] : log.practice_items;
-      if (practiceItem?.name) itemNameMap[log.practice_item_id] = practiceItem.name;
-      if (!matrix[log.user_id]) matrix[log.user_id] = {};
-      if (!matrix[log.user_id][log.practice_item_id]) matrix[log.user_id][log.practice_item_id] = {};
-      const prev = matrix[log.user_id][log.practice_item_id][log.date] || 0;
-      matrix[log.user_id][log.practice_item_id][log.date] = parseFloat((prev + (log.light || 0)).toFixed(2));
-    }
-    const dates = [...dateSet].sort();
+    const { dates, userItemsMap, itemNameMap, matrix } = await buildHistoryDetailMatrix(admin, start, end);
 
     const rows = [];
     for (const u of users) {

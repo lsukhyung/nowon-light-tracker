@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, getSupabaseAdminAny } from '@/lib/supabase';
 import { isAdminEmail } from '@/lib/admin';
+import { sanitizeFilenamePart } from '@/lib/utils';
+import { buildHistoryDetailMatrix } from '@/lib/admin-history';
 
 async function getUserFromToken(token: string) {
   const { data: { user }, error } = await supabase.auth.getUser(token);
@@ -12,19 +14,35 @@ function isAdmin(userEmail: string | undefined): boolean {
   return isAdminEmail(userEmail);
 }
 
-function toCSV(headers: string[], rows: (string | number)[][]): string {
-  const escape = (v: string | number) => {
+type CSVValue = string | number | null | undefined;
+
+interface UserExportInfo {
+  name?: string | null;
+  email?: string | null;
+}
+
+interface UserPracticeLogExportRow {
+  date: string;
+  count: number | null;
+  light: number | null;
+  practice_item_id: string;
+  practice_items?: { name?: string | null } | { name?: string | null }[] | null;
+}
+
+function escapeCSVValue(v: CSVValue): string {
     const s = String(v ?? '');
     return s.includes(',') || s.includes('"') || s.includes('\n')
       ? `"${s.replace(/"/g, '""')}"`
       : s;
-  };
-  const lines = [headers.map(escape).join(',')];
-  for (const row of rows) {
-    lines.push(row.map(escape).join(','));
-  }
+}
+
+function toCSVRows(rows: CSVValue[][]): string {
   // BOM for Excel Korean support
-  return '\uFEFF' + lines.join('\r\n');
+  return '\uFEFF' + rows.map(row => row.map(escapeCSVValue).join(',')).join('\r\n');
+}
+
+function toCSV(headers: string[], rows: CSVValue[][]): string {
+  return toCSVRows([headers, ...rows]);
 }
 
 /**
@@ -105,8 +123,13 @@ export async function GET(request: NextRequest) {
     const targetUserId = searchParams.get('userId') || '';
     const start = searchParams.get('start') || '';
     const end_ = searchParams.get('end') || '';
+    if (!targetUserId) return NextResponse.json({ message: 'userId가 필요합니다.' }, { status: 400 });
 
-    const logs = await fetchAll(() =>
+    const { data: userInfo } = await admin.from('users').select('name, email').eq('id', targetUserId).single();
+    const typedUserInfo = userInfo as UserExportInfo | null;
+    const userName = typedUserInfo?.name || typedUserInfo?.email || '도반';
+
+    const logs = await fetchAll<UserPracticeLogExportRow>(() =>
       admin
         .from('daily_practice_logs')
         .select(`date, count, light, practice_item_id, practice_items(name)`)
@@ -116,18 +139,29 @@ export async function GET(request: NextRequest) {
       start || undefined, end_ || undefined,
     );
 
-    const activityMap: Record<string, { name: string; count: number; light: number }> = {};
+    const rowMap: Record<string, { date: string; practiceItemName: string; count: number; light: number }> = {};
     for (const log of (logs || [])) {
-      const id = log.practice_item_id;
-      if (!activityMap[id]) activityMap[id] = { name: (log as any).practice_items?.name || '', count: 0, light: 0 };
-      activityMap[id].count += log.count || 0;
-      activityMap[id].light = parseFloat((activityMap[id].light + (log.light || 0)).toFixed(2));
+      const practiceItem = Array.isArray(log.practice_items) ? log.practice_items[0] : log.practice_items;
+      const practiceItemName = practiceItem?.name || '';
+      const key = `${log.date}__${log.practice_item_id}`;
+      if (!rowMap[key]) {
+        rowMap[key] = { date: log.date, practiceItemName, count: 0, light: 0 };
+      }
+      rowMap[key].count += log.count || 0;
+      rowMap[key].light = parseFloat((rowMap[key].light + (log.light || 0)).toFixed(2));
     }
 
-    const headers = ['실천활동', '횟수', '빛'];
-    const rows = Object.values(activityMap).map(v => [v.name, v.count, v.light]);
-    csvContent = toCSV(headers, rows);
-    filename = `사용자통계_${start}_${end_}.csv`;
+    const rows = Object.values(rowMap).sort((a, b) => (
+      a.date.localeCompare(b.date) || a.practiceItemName.localeCompare(b.practiceItemName)
+    ));
+    const totalLight = parseFloat(rows.reduce((sum, row) => sum + row.light, 0).toFixed(2));
+
+    csvContent = toCSVRows([
+      ['일자', '실천활동', '횟수', '빛'],
+      ...rows.map(row => [row.date, row.practiceItemName, row.count, row.light]),
+      ['합계', '', '', totalLight],
+    ]);
+    filename = `사용자통계_${start || 'all'}_${sanitizeFilenamePart(userName)}_${end_}.csv`;
   }
 
   // ─── total: 전체 빛 통계 ─────────────────────────────────────
@@ -182,40 +216,7 @@ export async function GET(request: NextRequest) {
     const start = searchParams.get('start') || '';
     const end_ = searchParams.get('end') || '';
     const { data: users } = await admin.from('users').select('id, name, email').order('name');
-    const logs = await fetchAll(() =>
-      admin
-        .from('daily_practice_logs')
-        .select(`user_id, date, light, practice_item_id, practice_items(name)`)
-        .order('date')
-        .order('id', { ascending: true }),
-      start || undefined, end_ || undefined,
-    );
-
-    // 도반별 현재 선택(active) 실천과제 조회
-    const { data: settingsRows } = await admin
-      .from('user_practice_settings')
-      .select('user_id, practice_item_id, practice_items(name)')
-      .eq('is_active', true);
-    const userItemsMap: Record<string, string[]> = {};
-    const itemNameMap: Record<string, string> = {};
-    for (const s of ((settingsRows as any[]) || [])) {
-      if (!userItemsMap[s.user_id]) userItemsMap[s.user_id] = [];
-      userItemsMap[s.user_id].push(s.practice_item_id);
-      const pi = Array.isArray(s.practice_items) ? s.practice_items[0] : s.practice_items;
-      itemNameMap[s.practice_item_id] = pi?.name || s.practice_item_id;
-    }
-
-    const dateSet = new Set<string>();
-    const matrix: Record<string, Record<string, Record<string, number>>> = {};
-    for (const log of (logs || [])) {
-      dateSet.add(log.date);
-      if ((log as any).practice_items?.name) itemNameMap[log.practice_item_id] = (log as any).practice_items.name;
-      if (!matrix[log.user_id]) matrix[log.user_id] = {};
-      if (!matrix[log.user_id][log.practice_item_id]) matrix[log.user_id][log.practice_item_id] = {};
-      const prev = matrix[log.user_id][log.practice_item_id][log.date] || 0;
-      matrix[log.user_id][log.practice_item_id][log.date] = parseFloat((prev + (log.light || 0)).toFixed(2));
-    }
-    const dates = [...dateSet].sort();
+    const { dates, userItemsMap, itemNameMap, matrix } = await buildHistoryDetailMatrix(admin, start || undefined, end_ || undefined);
 
     const headers = ['이름', '실천활동', ...dates];
     const rows: (string | number)[][] = [];

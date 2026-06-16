@@ -13,6 +13,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { sanitizeFilenamePart } from '@/lib/utils';
 import { Shield, ArrowLeft, CheckCircle, Copy, AlertTriangle, Download, BarChart2, TrendingUp, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { format, subDays, subMonths } from 'date-fns';
@@ -236,6 +237,8 @@ function UserLightTab({ users }: { users: UserData[] }) {
   useEffect(() => { if (selectedUserId) fetch(); }, [selectedUserId, period, fetch]);
 
   const { start, end } = getDateRange(period);
+  const selectedUser = users.find(u => u.id === selectedUserId);
+  const selectedUserName = sanitizeFilenamePart(selectedUser?.name || selectedUser?.email || '도반');
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
@@ -249,7 +252,7 @@ function UserLightTab({ users }: { users: UserData[] }) {
         <ChartTypeToggle value={chartType} onChange={setChartType} />
         {selectedUserId && (
           <Button variant="outline" size="sm" className="gap-1 ml-auto"
-            onClick={() => downloadExport('user', { userId: selectedUserId, start: start || '', end }, `사용자통계_${start||'all'}_${end}.csv`)}>
+            onClick={() => downloadExport('user', { userId: selectedUserId, start: start || '', end }, `사용자통계_${start||'all'}_${selectedUserName}_${end}.csv`)}>
             <Download className="w-4 h-4" /> CSV
           </Button>
         )}
