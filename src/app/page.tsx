@@ -64,25 +64,30 @@ function Dashboard() {
     sessionStorage.removeItem('justLoggedIn');
     const today = format(new Date(), 'yyyy-MM-dd');
 
-    // Zustand persist에 남아 있을 수 있는 예전 날짜를 무시하고 오늘로 강제 초기화 (최초 1회만)
-    if (!hasInitializedDate.current && selectedDate !== today) {
-      setSelectedDate(today);
-      hasInitializedDate.current = true;
-      return; // setSelectedDate 내부에서 fetchLogsForDate(today)를 호출하므로 이후 로직은 다음 렌더링에서 수행됨
+    // 관리자 페이지 등 다른 라우트를 다녀와 리마운트될 때 hasInitializedDate 는 false 로 리셋된다.
+    // 이때 store 의 selectedDate 가 오늘이 아니면 오늘로 강제 초기화(최초 1회)한다.
+    const target = (!hasInitializedDate.current && selectedDate !== today) ? today : selectedDate;
+    if (target !== selectedDate) {
+      // 날짜만 갱신한다. setSelectedDate 액션은 내부적으로 fetchLogsForDate 를 또 호출하므로,
+      // 여기서 그것을 쓰면 아래 Promise.all 의 fetch 와 중복 요청이 발생한다.
+      // 둘 중 하나(여기서는 액션 쪽)는 awaited 되지 않은 채 끝나 dataReady 이후 사용자 입력을
+      // 덮어쓰는 경합이 생기므로, fetch 는 오직 Promise.all 한 번만 수행한다.
+      usePracticeStore.setState({ selectedDate: target });
     }
     hasInitializedDate.current = true;
 
-    // 모든 초기 데이터 fetch가 완료된 후 dataReady 를 true 로 설정
+    // 모든 초기 데이터 fetch가 완료된 후 dataReady 를 true 로 설정.
+    // 의존성 배열에 selectedDate 가 없으므로, 어떤 경로에서든 반드시 한 번은 실행되어야 무한 로딩에 빠지지 않는다.
     Promise.all([
       fetchPracticeItems(),
       fetchUserSettings(),
-      fetchLogsForDate(selectedDate),
-      fetchTotalLight(selectedDate),
+      fetchLogsForDate(target),
+      fetchTotalLight(target),
     ]).finally(() => {
       setDataReady(true);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, fetchPracticeItems, fetchUserSettings, fetchLogsForDate, fetchTotalLight, setSelectedDate]);
+  }, [user, fetchPracticeItems, fetchUserSettings, fetchLogsForDate, fetchTotalLight]);
 
   // 데이터 로딩 완료 후 실천 현황 폼으로 자동 스크롤 (1회, 2패스)
   useEffect(() => {

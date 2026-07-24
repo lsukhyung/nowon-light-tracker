@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { format } from 'date-fns';
 import { api } from '@/lib/api';
+import type { PracticeItemInput } from '@/lib/practice-items';
 import type {
   PracticeItem,
   UserPracticeSetting,
@@ -49,7 +50,10 @@ interface PracticeStore {
   saveBatch: () => Promise<void>;
 
   /** 추가 실천과제 생성 */
-  createPracticeItem: (item: { name: string; description?: string; lightPerUnit: number }) => Promise<void>;
+  createPracticeItem: (item: PracticeItemInput) => Promise<void>;
+
+  /** 추가 실천과제 수정 */
+  updatePracticeItem: (id: string, item: PracticeItemInput) => Promise<void>;
 
   /** 추가 실천과제 삭제 */
   deletePracticeItem: (id: string) => Promise<void>;
@@ -133,7 +137,11 @@ export const usePracticeStore = create<PracticeStore>()(
         // 로컬 상태 즉시 업데이트 (낙관적 업데이트)
         set((state) => {
           const existing = state.todayLogs.find(l => l.practiceItemId === practiceItemId);
-          const newLight = parseFloat((Math.max(0, count) * lightPerUnit).toFixed(2));
+          // 이미 저장된 로우면 그 시점의 단위 스냅샷으로, 신규면 현재 과제 단위로 계산한다.
+          // 과제 단위가 이후에 바뀌어도 서버는 스냅샷을 유지하므로, 낙관적 표시도 스냅샷을 따라야
+          // 저장 전 표시/공유 빛이 persist된 값과 어긋나지 않는다.
+          const rate = existing?.lightPerUnit ?? lightPerUnit;
+          const newLight = parseFloat((Math.max(0, count) * rate).toFixed(2));
           if (existing) {
             return {
               todayLogs: state.todayLogs.map(l =>
@@ -143,6 +151,10 @@ export const usePracticeStore = create<PracticeStore>()(
               ),
             };
           } else {
+            // 첫 저장 전 임시 로우. practiceItem 메타데이터가 없으면 PracticeForm 이
+            // + 버튼 직후 과제명을 '실천과제'로 렌더링해버리므로, 해당 과제 정보를 붙인다.
+            // lightPerUnit(현재 과제 단위)도 스냅샷 자리에 두어 이후 증분이 동일 단위를 쓰게 한다.
+            const item = state.practiceItems.find(i => i.id === practiceItemId);
             const newLog: DailyPracticeLog = {
               id: `temp-${practiceItemId}`,
               userId: '',
@@ -150,8 +162,10 @@ export const usePracticeStore = create<PracticeStore>()(
               date,
               count: Math.max(0, count),
               light: newLight,
+              lightPerUnit: lightPerUnit,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
+              practiceItem: item,
             };
             return { todayLogs: [...state.todayLogs, newLog] };
           }
@@ -173,9 +187,11 @@ export const usePracticeStore = create<PracticeStore>()(
             };
           });
           await api.savePracticeLogsBatch(selectedDate, logs);
-          // 저장 후 서버에서 재조회
-          await get().fetchLogsForDate(selectedDate);
-          await get().fetchTotalLight(selectedDate);
+          // 저장 후 서버에서 재조회. 두 갱신은 서로 의존하지 않으므로 병렬로 실행한다.
+          await Promise.all([
+            get().fetchLogsForDate(selectedDate),
+            get().fetchTotalLight(selectedDate),
+          ]);
           // 저장 완료되었으므로 로컬 savedTodayLight도 현재 todayLogs 기준으로 업데이트
           set({ savedTodayLight: get().getTodayTotalLight() });
         } catch (error: any) {
@@ -189,8 +205,20 @@ export const usePracticeStore = create<PracticeStore>()(
       createPracticeItem: async (item) => {
         const created = await api.createPracticeItem(item);
         set((state) => ({ practiceItems: [...state.practiceItems, created] }));
+        // 서버 POST 가 자동 선택(user_practice_settings upsert)을 수행하지만 그 결과를
+        // 응답에 반영하지 않고 최선주의로만 처리한다. 로컬 추측이 서버 상태와 어긋나면
+        // 새로고침 후 과제가 사라지는 현상이 생기므로, 확정을 위해 설정을 다시 불러온다.
         await get().fetchUserSettings();
         return created;
+      },
+
+      updatePracticeItem: async (id, item) => {
+        const updated = await api.updatePracticeItem(id, item);
+        set((state) => ({
+          practiceItems: state.practiceItems.map(i => (i.id === id ? updated : i)),
+        }));
+        // 1회당 빛은 서버가 로우 단위 스냅샷으로 관리하므로 기존 로그의 light는 변하지 않는다.
+        // 따라서 수정 후 로그를 다시 불러올 필요가 없다.
       },
 
       deletePracticeItem: async (id: string) => {

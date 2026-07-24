@@ -31,6 +31,7 @@ export function PracticeForm({
     goal,
     totalLightInfo,
     savedTodayLight,
+    todayLogs,
     getActivePracticeItems,
     getLogForItem,
     updateCount,
@@ -81,11 +82,12 @@ export function PracticeForm({
   });
 
   const activeItems = getActivePracticeItems();
+  // 오늘 기록된 로우 중 횟수 > 0 인 것(삭제 과제의 보존된 내역 포함).
+  // savedTodayLight 가 서버 전체 로그의 합이므로, 요약/공유/총합은 모두 이 집합을 기준으로 해야
+  // delta 가 음수가 되는 불일치가 생기지 않는다.
+  const loggedToday = todayLogs.filter(l => (l.count || 0) > 0);
   const todayLight = parseFloat(
-    activeItems.reduce((sum, item) => {
-      const log = getLogForItem(item.id);
-      return sum + (log?.light || 0);
-    }, 0).toFixed(2)
+    loggedToday.reduce((sum, log) => sum + (log?.light || 0), 0).toFixed(2)
   );
 
   const deltaLight = parseFloat((todayLight - savedTodayLight).toFixed(2));
@@ -124,28 +126,21 @@ export function PracticeForm({
       toast.success('실천 기록이 저장되었습니다.');
       onSave?.();
 
-      // 저장 후 이벤트 당첨 취대츠 (userId가 있을 때만)
+      // 저장 후 이벤트 당첨 체크 (userId가 있을 때만)
       if (userId) {
-        try {
-          // 노원지원 전체 누적 빛 기준으로 이벤트 달성 여부 판별
-          const result = await api.checkEventWin(displayAllTimeTotal, userName || '');
-          if (result.newWins && result.newWins.length > 0) {
-            setNewWinEvents(result.newWins);
-            setShowWinModal(true);
-          }
-        } catch {
-          // 이벤트 실패는 무시
+        // 누적 빛은 check-win/check-achieve 엔드포인트가 서버에서 직접 계산한다.
+        // 두 체크는 서로 독립적이므로 병렬로 실행해 저장 지연을 줄인다.
+        const [winRes, achieveRes] = await Promise.allSettled([
+          api.checkEventWin(selectedDate, userName || ''),
+          api.checkPersonalEventAchieve(selectedDate),
+        ]);
+        if (winRes.status === 'fulfilled' && winRes.value.newWins?.length) {
+          setNewWinEvents(winRes.value.newWins);
+          setShowWinModal(true);
         }
-
-        // 개인 이벤트 달성 체크
-        try {
-          const achieveResult = await api.checkPersonalEventAchieve(displayMyTotalLight);
-          if (achieveResult.newAchievements && achieveResult.newAchievements.length > 0) {
-            setNewAchieveEvents(achieveResult.newAchievements);
-            setShowAchieveModal(true);
-          }
-        } catch {
-          // 개인 이벤트 실패는 무시
+        if (achieveRes.status === 'fulfilled' && achieveRes.value.newAchievements?.length) {
+          setNewAchieveEvents(achieveRes.value.newAchievements);
+          setShowAchieveModal(true);
         }
       }
     } catch (error: any) {
@@ -161,11 +156,12 @@ export function PracticeForm({
       '',
     ];
 
-    activeItems.forEach(item => {
-      const log = getLogForItem(item.id);
-      if (log && log.count > 0) {
-        lines.push(`☀️ ${item.name} : ${log.count}회 ${log.light}빛`);
-      }
+    // 오늘 기록된 모든 내역(활성 + 삭제 과제 보존분)을 한 번에 공유.
+    // todayLight 도 loggedToday 기준이므로 공유 내역과 총합이 일치한다.
+    loggedToday.forEach(log => {
+      const { name, description } = log.practiceItem ?? {};
+      const label = description ? `${name ?? '실천과제'}(${description})` : (name ?? '실천과제');
+      lines.push(`☀️ ${label} : ${log.count}회 ${log.light}빛`);
     });
 
     lines.push('');
@@ -209,7 +205,8 @@ export function PracticeForm({
     }
   })();
 
-  if (activeItems.length === 0) {
+  // 활성 과제가 없더라도 보존된 과거 내역(loggedToday)이 있으면 요약은 보여줘야 한다.
+  if (activeItems.length === 0 && loggedToday.length === 0) {
     return (
       <Card>
         <CardContent className="pt-6">
@@ -274,21 +271,20 @@ export function PracticeForm({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {activeItems.map(item => {
-                const log = getLogForItem(item.id);
-                if (!log || log.count === 0) return null;
+              {loggedToday.map(log => {
+                const { name, description } = log.practiceItem ?? {};
                 return (
-                  <tr key={item.id} className="text-slate-600 dark:text-slate-300">
+                  <tr key={log.practiceItemId} className="text-slate-600 dark:text-slate-300">
                     <td className="py-2 pr-2">
-                      <span className="block leading-snug font-medium text-foreground">{item.name}</span>
-                      <span className="text-[10px] text-muted-foreground mt-0.5 leading-tight block">{item.description}</span>
+                      <span className="block leading-snug font-medium text-foreground">{name ?? '실천과제'}</span>
+                      {description && <span className="text-[10px] text-muted-foreground mt-0.5 leading-tight block">{description}</span>}
                     </td>
                     <td className="py-2 text-center align-middle font-medium">{log.count}</td>
                     <td className="py-2 text-right align-middle font-bold text-slate-700 dark:text-slate-200">{log.light}</td>
                   </tr>
                 );
               })}
-              {activeItems.every(item => !getLogForItem(item.id) || getLogForItem(item.id)!.count === 0) && (
+              {loggedToday.length === 0 && (
                 <tr>
                   <td colSpan={3} className="py-6 text-center text-muted-foreground text-xs">
                     오늘 실천한 내용이 없습니다. 아래에서 + 버튼을 눌러 기록해주세요.

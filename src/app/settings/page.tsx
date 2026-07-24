@@ -3,6 +3,7 @@
 import { ChangePasswordForm } from '@/components/auth/change-password-form';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuthStore } from '@/store/auth-store';
+import { validatePracticeItemInput } from '@/lib/practice-items';
 import { usePracticeStore } from '@/store/practice-store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
-  User, Phone, Calendar, ArrowLeft, AlertTriangle, Target, Plus, Trash2, Sun,
+  User, Phone, Calendar, ArrowLeft, AlertTriangle, Target, Plus, Trash2, Sun, Pencil,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, useCallback } from 'react';
@@ -34,6 +35,7 @@ function SettingsPage() {
     fetchUserSettings,
     saveUserSettings,
     createPracticeItem,
+    updatePracticeItem,
     deletePracticeItem,
   } = usePracticeStore();
 
@@ -54,6 +56,10 @@ function SettingsPage() {
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  // 수정 모달
+  const [editItem, setEditItem] = useState<{ id: string; name: string; description: string; light: string } | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   const loadData = useCallback(async () => {
     await Promise.all([fetchPracticeItems(), fetchUserSettings()]);
@@ -109,21 +115,17 @@ function SettingsPage() {
   };
 
   const handleAddItem = async () => {
-    if (!newItemName.trim()) {
-      toast.error('과제명을 입력해주세요.');
-      return;
-    }
-    const lightVal = parseFloat(newItemLight);
-    if (isNaN(lightVal) || lightVal <= 0) {
-      toast.error('빛은 0보다 큰 숫자로 입력해주세요.');
+    const parsed = validatePracticeItemInput({ name: newItemName, description: newItemDescription, lightPerUnit: newItemLight });
+    if ('error' in parsed) {
+      toast.error(parsed.error);
       return;
     }
     setIsAddingItem(true);
     try {
       await createPracticeItem({
-        name: newItemName.trim(),
-        description: newItemDescription.trim() || undefined,
-        lightPerUnit: lightVal,
+        name: parsed.name,
+        description: parsed.description ?? undefined,
+        lightPerUnit: parsed.lightVal,
       });
       setShowAddModal(false);
       setNewItemName('');
@@ -138,7 +140,7 @@ function SettingsPage() {
   };
 
   const handleDeleteItem = async (id: string) => {
-    if (!window.confirm('실천과제를 삭제하면 실천내용도 같이 삭제됩니다. 삭제하시겠습니까?')) {
+    if (!window.confirm('이 실천과제를 삭제하시겠습니까?\n(과거 실천 내역과 통계는 보존됩니다.)')) {
       return;
     }
     try {
@@ -151,6 +153,29 @@ function SettingsPage() {
       toast.success('과제가 삭제되었습니다.');
     } catch {
       toast.error('삭제에 실패했습니다.');
+    }
+  };
+
+  const handleEditItem = async () => {
+    if (!editItem) return;
+    const parsed = validatePracticeItemInput({ name: editItem.name, description: editItem.description, lightPerUnit: editItem.light });
+    if ('error' in parsed) {
+      toast.error(parsed.error);
+      return;
+    }
+    setIsEditing(true);
+    try {
+      await updatePracticeItem(editItem.id, {
+        name: parsed.name,
+        description: parsed.description ?? undefined,
+        lightPerUnit: parsed.lightVal,
+      });
+      setEditItem(null);
+      toast.success('실천과제가 수정되었습니다.');
+    } catch {
+      toast.error('수정에 실패했습니다.');
+    } finally {
+      setIsEditing(false);
     }
   };
 
@@ -322,8 +347,21 @@ function SettingsPage() {
                           className="w-4 h-4 accent-primary cursor-pointer"
                         />
                         <button
+                          onClick={() => setEditItem({
+                            id: item.id,
+                            name: item.name,
+                            description: item.description || '',
+                            light: String(item.lightPerUnit),
+                          })}
+                          className="text-muted-foreground hover:text-blue-500 transition-colors"
+                          title="수정"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleDeleteItem(item.id)}
                           className="text-muted-foreground hover:text-red-500 transition-colors"
+                          title="삭제"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -440,6 +478,53 @@ function SettingsPage() {
             <Button variant="outline" onClick={() => setShowAddModal(false)}>취소</Button>
             <Button onClick={handleAddItem} disabled={isAddingItem}>
               {isAddingItem ? '저장 중...' : '저장'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 실천과제 수정 모달 */}
+      <Dialog open={!!editItem} onOpenChange={(open) => { if (!open) setEditItem(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>실천과제 수정</DialogTitle>
+          </DialogHeader>
+          {editItem && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>실천 과제 명</Label>
+                <Input
+                  placeholder="실천 과제명을 입력하세요"
+                  value={editItem.name}
+                  onChange={e => setEditItem({ ...editItem, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>실천 기준</Label>
+                <Input
+                  placeholder="횟수나 시간 등 1회 소양 기준을 입력하세요"
+                  value={editItem.description}
+                  onChange={e => setEditItem({ ...editItem, description: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>1회당 빛</Label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min="0.1"
+                  step="any"
+                  placeholder="예: 1"
+                  value={editItem.light}
+                  onChange={e => setEditItem({ ...editItem, light: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditItem(null)}>취소</Button>
+            <Button onClick={handleEditItem} disabled={isEditing}>
+              {isEditing ? '저장 중...' : '수정'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { sanitizeFilenamePart } from '@/lib/utils';
+import { validatePracticeItemInput } from '@/lib/practice-items';
 import { Shield, ArrowLeft, CheckCircle, Copy, AlertTriangle, Download, BarChart2, TrendingUp, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { format, subDays, subMonths } from 'date-fns';
@@ -553,6 +554,115 @@ function PersonalEventTab({ users }: { users: UserData[] }) {
 }
 
 // ──────────────────────────────────────
+// Tab: 실천과제 관리 (기본 과제 수정)
+// ──────────────────────────────────────
+function PracticeItemsTab() {
+  const [items, setItems] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState<{ name: string; description: string; light: string }>({ name: '', description: '', light: '' });
+  const [isSaving, setIsSaving] = useState(false);
+
+  const fetchItems = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const d = await api.getAdminPracticeItems();
+      setItems(d || []);
+    } catch {
+      toast.error('실천과제 조회 실패');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  const startEdit = (item: any) => {
+    setEditId(item.id);
+    setForm({
+      name: item.name,
+      description: item.description || '',
+      light: String(item.lightPerUnit),
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditId(null);
+    setForm({ name: '', description: '', light: '' });
+  };
+
+  const saveEdit = async (id: string) => {
+    const parsed = validatePracticeItemInput({ name: form.name, description: form.description, lightPerUnit: form.light });
+    if ('error' in parsed) { toast.error(parsed.error); return; }
+    setIsSaving(true);
+    try {
+      const updated = await api.updateAdminPracticeItem(id, {
+        name: parsed.name,
+        description: parsed.description ?? undefined,
+        lightPerUnit: parsed.lightVal,
+      });
+      setItems(prev => prev.map(i => (i.id === id ? { ...i, ...updated } : i)));
+      toast.success('수정되었습니다.');
+      cancelEdit();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || '수정에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        기본 실천과제의 과제명·실천 기준·1회당 빛을 수정할 수 있습니다. 변경한 1회당 빛은 이후 새로 기록되는 실천부터 적용됩니다.
+      </p>
+      {isLoading ? (
+        <div className="text-center py-8 text-muted-foreground text-sm">로딩 중...</div>
+      ) : items.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground text-sm">기본 실천과제가 없습니다.</div>
+      ) : (
+        <div className="space-y-3">
+          {items.map((item) => (
+            <div key={item.id} className="border rounded-lg p-3 space-y-3">
+              {editId === item.id ? (
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">실천 과제명</p>
+                    <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="h-9" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">실천 기준</p>
+                    <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="h-9" placeholder="1회 기준" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">1회당 빛</p>
+                    <Input type="number" inputMode="decimal" min="0.1" step="any" value={form.light}
+                      onChange={e => setForm({ ...form, light: e.target.value })} className="h-9 w-32" />
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button size="sm" className="h-8 flex-1" onClick={() => saveEdit(item.id)} disabled={isSaving}>저장</Button>
+                    <Button size="sm" variant="outline" className="h-8 flex-1" onClick={cancelEdit} disabled={isSaving}>취소</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium break-words">{item.name}</p>
+                    <p className="text-sm text-muted-foreground break-words">{item.description || '-'}</p>
+                    <p className="text-sm text-amber-600 font-bold mt-0.5">☀️ {item.lightPerUnit}빛</p>
+                  </div>
+                  <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={() => startEdit(item)}>수정</Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────
 // Tab: 이벤트 관리
 // ──────────────────────────────────────
 function EventTab() {
@@ -762,6 +872,7 @@ function AdminPage() {
             <TabsTrigger value="user">도반별</TabsTrigger>
             <TabsTrigger value="history">역사 통계</TabsTrigger>
             <TabsTrigger value="history-detail">전체 실천활동</TabsTrigger>
+            <TabsTrigger value="practice-items">실천과제 관리</TabsTrigger>
             <TabsTrigger value="personal-events">개인 이벤트</TabsTrigger>
             <TabsTrigger value="events">이벤트</TabsTrigger>
             <TabsTrigger value="password" className="relative">
@@ -826,6 +937,17 @@ function AdminPage() {
                 <CardDescription>도반 × 실천활동 × 일자 행렬로 상세 통계를 확인합니다.</CardDescription>
               </CardHeader>
               <CardContent><HistoryDetailTab /></CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 실천과제 관리 */}
+          <TabsContent value="practice-items">
+            <Card>
+              <CardHeader>
+                <CardTitle>실천과제 관리</CardTitle>
+                <CardDescription>기본 실천과제의 과제명·실천 기준·1회당 빛을 수정합니다.</CardDescription>
+              </CardHeader>
+              <CardContent><PracticeItemsTab /></CardContent>
             </Card>
           </TabsContent>
 

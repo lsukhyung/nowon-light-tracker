@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import type { PracticeItemInput } from '@/lib/practice-items';
 
 // Next.js API routes를 사용하는 경우 baseURL은 빈 문자열 (상대 경로)
 // 외부 API를 사용하는 경우 NEXT_PUBLIC_API_URL 환경 변수 설정
@@ -164,6 +165,17 @@ class ApiClient {
     return data;
   }
 
+  // ─── 관리자 실천과제 API ──────────────────────────────────────────
+  async getAdminPracticeItems() {
+    const { data } = await this.client.get('/api/admin/practice-items');
+    return data;
+  }
+
+  async updateAdminPracticeItem(id: string, item: PracticeItemInput) {
+    const { data } = await this.client.put(`/api/admin/practice-items?id=${id}`, item);
+    return data;
+  }
+
   // Training records endpoints
   async getTrainingRecords(filters?: { startDate?: string; endDate?: string }) {
     const { data } = await this.client.get('/api/training', { params: filters });
@@ -207,8 +219,13 @@ class ApiClient {
     return data;
   }
 
-  async createPracticeItem(item: { name: string; description?: string; lightPerUnit: number }) {
+  async createPracticeItem(item: PracticeItemInput) {
     const { data } = await this.client.post('/api/practice-items', item);
+    return data;
+  }
+
+  async updatePracticeItem(id: string, item: PracticeItemInput) {
+    const { data } = await this.client.put(`/api/practice-items?id=${id}`, item);
     return data;
   }
 
@@ -317,9 +334,9 @@ class ApiClient {
     return data;
   }
 
-  /** 저장 후 이벤트 당첨 확인 */
-  async checkEventWin(totalLight: number, userName: string) {
-    const { data } = await this.client.post('/api/events/check-win', { totalLight, userName });
+  /** 저장 후 이벤트 당첨 확인. 누적 빛은 서버가 직접 계산하므로 date 만 넘긴다. */
+  async checkEventWin(date: string, userName: string) {
+    const { data } = await this.client.post('/api/events/check-win', { date, userName });
     return data; // { newWins: Event[] }
   }
 
@@ -339,9 +356,9 @@ class ApiClient {
     return data;
   }
 
-  /** 저장 후 개인 이벤트 달성 확인 */
-  async checkPersonalEventAchieve(totalLight: number) {
-    const { data } = await this.client.post('/api/personal-events/check-achieve', { totalLight });
+  /** 저장 후 개인 이벤트 달성 확인. 누적 빛은 서버가 직접 계산하므로 date 만 넘긴다. */
+  async checkPersonalEventAchieve(date: string) {
+    const { data } = await this.client.post('/api/personal-events/check-achieve', { date });
     return data; // { newAchievements: PersonalEvent[] }
   }
 }

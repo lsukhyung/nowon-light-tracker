@@ -46,6 +46,7 @@ export interface DailyPracticeLog {
   date: string;               // YYYY-MM-DD
   count: number;
   light: number;              // count × lightPerUnit
+  lightPerUnit?: number;      // 해당 로우가 처음 기록된 시점의 1회당 빛 스냅샷
   practiceItem?: PracticeItem;
   createdAt: string;
   updatedAt: string;
