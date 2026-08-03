@@ -320,13 +320,35 @@ export function PracticeForm({
             </div>
           </div>
 
-          <div className="mt-3.5 flex justify-center">
+          <div className="mt-3.5 flex justify-center items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="sm:hidden h-10 w-10 -mr-1"
+              onClick={handlePrevDay}
+              aria-label="이전 날"
+              title="이전 날"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
             <Button
               variant="default"
-              className="bg-[#5c9ce6] hover:bg-[#4a7ebd] text-white rounded-full px-8 py-1.5 h-auto min-h-0 text-[13px] font-bold shadow-none leading-none flex items-center justify-center"
+              className="bg-[#5c9ce6] hover:bg-[#4a7ebd] text-white rounded-full px-12 py-2.5 h-auto min-h-0 text-[15px] font-bold shadow-none leading-none flex items-center justify-center"
               onClick={handleShare}
             >
               공유
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="sm:hidden h-10 w-10 -ml-1"
+              onClick={handleNextDay}
+              aria-label="다음 날"
+              title="다음 날"
+            >
+              <ChevronRight className="w-5 h-5" />
             </Button>
           </div>
         </div>
