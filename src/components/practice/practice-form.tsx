@@ -233,30 +233,6 @@ export function PracticeForm({
             >
               {formattedDate}
             </span>
-            <div className="hidden sm:flex items-center gap-1 shrink-0 ml-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 -mr-1"
-                onClick={handlePrevDay}
-                aria-label="이전 날"
-                title="이전 날"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 -ml-1"
-                onClick={handleNextDay}
-                aria-label="다음 날"
-                title="다음 날"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-0 pt-0 pb-6">
@@ -325,7 +301,7 @@ export function PracticeForm({
               type="button"
               variant="ghost"
               size="icon"
-              className="sm:hidden h-10 w-10 -mr-1"
+              className="h-10 w-10 -mr-1"
               onClick={handlePrevDay}
               aria-label="이전 날"
               title="이전 날"
@@ -343,7 +319,7 @@ export function PracticeForm({
               type="button"
               variant="ghost"
               size="icon"
-              className="sm:hidden h-10 w-10 -ml-1"
+              className="h-10 w-10 -ml-1"
               onClick={handleNextDay}
               aria-label="다음 날"
               title="다음 날"
