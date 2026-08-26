@@ -301,12 +301,12 @@ export function PracticeForm({
               type="button"
               variant="ghost"
               size="icon"
-              className="h-10 w-10 -mr-1"
+              className="h-12 w-12 -mr-1"
               onClick={handlePrevDay}
               aria-label="이전 날"
               title="이전 날"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-6 h-6" strokeWidth={3} />
             </Button>
             <Button
               variant="default"
@@ -319,12 +319,12 @@ export function PracticeForm({
               type="button"
               variant="ghost"
               size="icon"
-              className="h-10 w-10 -ml-1"
+              className="h-12 w-12 -ml-1"
               onClick={handleNextDay}
               aria-label="다음 날"
               title="다음 날"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-6 h-6" strokeWidth={3} />
             </Button>
           </div>
         </div>
