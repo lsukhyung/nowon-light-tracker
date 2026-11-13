@@ -271,8 +271,19 @@ class ApiClient {
   }
 
   // ─── 통계 API ────────────────────────────────────────────────────
-  async getMyStats(start?: string, end?: string) {
-    const { data } = await this.client.get('/api/stats', { params: { type: 'my', start, end } });
+  async getMyStats(
+    start?: string,
+    end?: string,
+    filter?: 'all' | 'haengong_bonsuryeon' | 'walking'
+  ) {
+    const { data } = await this.client.get('/api/stats', {
+      params: {
+        type: 'my',
+        start,
+        end,
+        ...(filter && filter !== 'all' ? { filter } : {}),
+      },
+    });
     return data;
   }
 

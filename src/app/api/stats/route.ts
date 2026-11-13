@@ -17,6 +17,31 @@ interface PracticeLogRow {
   practice_items?: PracticeItemRow | PracticeItemRow[] | null;
 }
 
+type StatsFilter = 'all' | 'haengong_bonsuryeon' | 'walking';
+
+function parseStatsFilter(value: string | null): StatsFilter {
+  if (value === 'haengong_bonsuryeon' || value === 'walking') return value;
+  return 'all';
+}
+
+function matchesPracticeFilter(itemName: string, filter: StatsFilter): boolean {
+  if (filter === 'all') return true;
+  const trimmed = itemName.trim();
+  if (filter === 'haengong_bonsuryeon') {
+    return trimmed === '행공' || trimmed === '본수련';
+  }
+  if (filter === 'walking') {
+    const normalized = trimmed.replace(/\s+/g, '');
+    return (
+      normalized.includes('걷기역사') ||
+      (normalized.includes('걷기') && normalized.includes('코스')) ||
+      normalized.includes('짧은코스') ||
+      normalized.includes('잛은코스')
+    );
+  }
+  return true;
+}
+
 async function getUserFromToken(token: string) {
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) return null;
@@ -104,6 +129,7 @@ export async function GET(request: NextRequest) {
   // ─── 2. 나의 빛 통계 ───────────────────────────────────────────
   const start = searchParams.get('start');
   const end = searchParams.get('end');
+  const filter = parseStatsFilter(searchParams.get('filter'));
 
   let logs: PracticeLogRow[] = [];
   try {
@@ -119,11 +145,15 @@ export async function GET(request: NextRequest) {
   const activityMap: Record<string, { name: string; description?: string; count: number; light: number }> = {};
 
   for (const log of (logs || [])) {
+    const practiceItem = Array.isArray(log.practice_items) ? log.practice_items[0] : log.practice_items;
+    if (!matchesPracticeFilter(practiceItem?.name || '', filter)) {
+      continue;
+    }
+
     const dateKey = log.date;
     dailyMap[dateKey] = parseFloat(((dailyMap[dateKey] || 0) + (log.light || 0)).toFixed(2));
 
     const itemId = log.practice_item_id;
-    const practiceItem = Array.isArray(log.practice_items) ? log.practice_items[0] : log.practice_items;
     if (!activityMap[itemId]) {
       activityMap[itemId] = {
         name: practiceItem?.name || '',
@@ -146,6 +176,7 @@ export async function GET(request: NextRequest) {
   }));
 
   const totalLight = dailySummaries.reduce((sum, d) => sum + d.totalLight, 0);
+  const totalCount = activitySummaries.reduce((sum, a) => sum + a.totalCount, 0);
 
   // 목표 조회
   const { data: goal } = await admin
@@ -162,6 +193,7 @@ export async function GET(request: NextRequest) {
     dailySummaries,
     activitySummaries,
     totalLight: parseFloat(totalLight.toFixed(2)),
+    totalCount,
     dailyLightGoal,
     totalLightGoal,
     achievementRate,

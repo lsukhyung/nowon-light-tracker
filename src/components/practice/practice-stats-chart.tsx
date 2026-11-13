@@ -6,14 +6,22 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '@/lib/api';
-import { subDays, subMonths, format, parseISO, startOfDay } from 'date-fns';
+import { subDays, subMonths, format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { BarChart2, TrendingUp, Loader2 } from 'lucide-react';
 
-type PeriodType = 'week' | 'month' | 'all';
+type PeriodType = 'week' | 'month' | 'all' | 'custom';
 type ChartType = 'bar' | 'line';
+type ViewMode = 'all' | 'haengong_bonsuryeon' | 'walking';
+
+const VIEW_MODE_OPTIONS: { value: ViewMode; label: string; summaryLabel: string }[] = [
+  { value: 'all', label: '전체', summaryLabel: '검색기간 나의 빛' },
+  { value: 'haengong_bonsuryeon', label: '행공+본수련', summaryLabel: '행공+본수련 합계' },
+  { value: 'walking', label: '걷기역사 (짧은 코스)', summaryLabel: '걷기역사 (짧은 코스) 합계' },
+];
 
 interface DailySummary { date: string; totalLight: number; }
 interface ActivitySummary {
@@ -25,32 +33,47 @@ interface ActivitySummary {
 }
 
 export function PracticeStatsChart({ refreshKey }: { refreshKey?: number }) {
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const oneMonthAgoStr = format(subMonths(new Date(), 1), 'yyyy-MM-dd');
+
   const [period, setPeriod] = useState<PeriodType>('week');
+  const [startDate, setStartDate] = useState<string>(oneMonthAgoStr);
+  const [endDate, setEndDate] = useState<string>(todayStr);
+  const [viewMode, setViewMode] = useState<ViewMode>('all');
   const [chartType, setChartType] = useState<ChartType>('bar');
   const [dailySummaries, setDailySummaries] = useState<DailySummary[]>([]);
   const [activitySummaries, setActivitySummaries] = useState<ActivitySummary[]>([]);
   const [totalLight, setTotalLight] = useState(0);
-  const [dailyGoal, setDailyGoal] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
   const [totalGoal, setTotalGoal] = useState(0);
   const [achievementRate, setAchievementRate] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchStats = useCallback(async () => {
+    if (period === 'custom' && (!startDate || !endDate || startDate > endDate)) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       const now = new Date();
       let start: string | undefined;
-      const end = format(now, 'yyyy-MM-dd');
+      let end: string | undefined = format(now, 'yyyy-MM-dd');
 
       if (period === 'week') start = format(subDays(now, 6), 'yyyy-MM-dd');
       else if (period === 'month') start = format(subMonths(now, 1), 'yyyy-MM-dd');
-      else start = undefined;
+      else if (period === 'custom') {
+        start = startDate;
+        end = endDate;
+      } else {
+        start = undefined;
+      }
 
-      const data = await api.getMyStats(start, end);
+      const data = await api.getMyStats(start, end, viewMode);
       setDailySummaries(data.dailySummaries || []);
       setActivitySummaries(data.activitySummaries || []);
       setTotalLight(data.totalLight || 0);
-      setDailyGoal(data.dailyLightGoal || 0);
+      setTotalCount(data.totalCount || 0);
       setTotalGoal(data.totalLightGoal || 0);
       setAchievementRate(data.achievementRate || 0);
     } catch (error) {
@@ -58,11 +81,27 @@ export function PracticeStatsChart({ refreshKey }: { refreshKey?: number }) {
     } finally {
       setIsLoading(false);
     }
-  }, [period, refreshKey]);
+  }, [period, startDate, endDate, viewMode, refreshKey]);
 
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+
+  const handleStartDateChange = (value: string) => {
+    setStartDate(value);
+    if (value && endDate && value > endDate) {
+      setEndDate(value);
+    }
+  };
+
+  const handleEndDateChange = (value: string) => {
+    setEndDate(value);
+    if (value && startDate && value < startDate) {
+      setStartDate(value);
+    }
+  };
+
+  const currentViewOption = VIEW_MODE_OPTIONS.find((o) => o.value === viewMode) || VIEW_MODE_OPTIONS[0];
 
   const chartData = dailySummaries.map(d => ({
     date: (() => {
@@ -74,7 +113,7 @@ export function PracticeStatsChart({ refreshKey }: { refreshKey?: number }) {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 space-y-3">
         <CardTitle className="flex items-center justify-between flex-wrap gap-2">
           <span className="flex items-center gap-2 text-base">
             <BarChart2 className="w-5 h-5" />
@@ -83,13 +122,14 @@ export function PracticeStatsChart({ refreshKey }: { refreshKey?: number }) {
           <div className="flex items-center gap-2">
             {/* 기간 선택 */}
             <Select value={period} onValueChange={(v) => setPeriod(v as PeriodType)}>
-              <SelectTrigger className="w-[90px] h-8 text-sm">
+              <SelectTrigger className="w-[105px] h-8 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="week">일주일</SelectItem>
                 <SelectItem value="month">한달</SelectItem>
                 <SelectItem value="all">전체</SelectItem>
+                <SelectItem value="custom">기간 선택</SelectItem>
               </SelectContent>
             </Select>
             {/* 차트 타입 */}
@@ -111,6 +151,49 @@ export function PracticeStatsChart({ refreshKey }: { refreshKey?: number }) {
             </Button>
           </div>
         </CardTitle>
+
+        {/* 기간 직접 선택 입력 */}
+        {period === 'custom' && (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">시작</span>
+              <Input
+                type="date"
+                value={startDate}
+                max={todayStr}
+                onChange={(e) => handleStartDateChange(e.target.value)}
+                className="h-8 w-[138px] text-xs sm:text-sm"
+              />
+            </div>
+            <span className="text-xs text-muted-foreground">~</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">종료</span>
+              <Input
+                type="date"
+                value={endDate}
+                max={todayStr}
+                onChange={(e) => handleEndDateChange(e.target.value)}
+                className="h-8 w-[138px] text-xs sm:text-sm"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* 실천현황 조회 유형 선택 */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          {VIEW_MODE_OPTIONS.map((option) => (
+            <Button
+              key={option.value}
+              type="button"
+              variant={viewMode === option.value ? 'default' : 'outline'}
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={() => setViewMode(option.value)}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading && chartData.length === 0 ? (
@@ -178,11 +261,13 @@ export function PracticeStatsChart({ refreshKey }: { refreshKey?: number }) {
                     ))}
                     {/* 합계 행 */}
                     <tr className="border-t bg-muted/30">
-                      <td className="px-3 py-2 font-bold">검색기간 나의 빛</td>
-                      <td className="text-right px-3 py-2 text-muted-foreground">—</td>
+                      <td className="px-3 py-2 font-bold">{currentViewOption.summaryLabel}</td>
+                      <td className="text-right px-3 py-2 font-semibold text-muted-foreground">
+                        {viewMode === 'all' ? '—' : totalCount.toLocaleString()}
+                      </td>
                       <td className="text-right px-3 py-2 font-bold text-yellow-600">
                         {totalLight}
-                        {totalGoal > 0 && (
+                        {viewMode === 'all' && totalGoal > 0 && (
                           <span className="ml-1 text-xs font-normal text-muted-foreground">
                             (목표대비 {achievementRate}%)
                           </span>
