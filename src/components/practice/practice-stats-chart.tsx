@@ -47,7 +47,7 @@ export function PracticeStatsChart({ refreshKey }: { refreshKey?: number }) {
   const [period, setPeriod] = useState<PeriodType>('week');
   const [startDate, setStartDate] = useState<string>(oneMonthAgoStr);
   const [endDate, setEndDate] = useState<string>(todayStr);
-  const [viewMode, setViewMode] = useState<ViewMode>('haengong_bonsuryeon');
+  const [viewMode, setViewMode] = useState<ViewMode>('all');
   const [chartType, setChartType] = useState<ChartType>('bar');
   const [dailySummaries, setDailySummaries] = useState<DailySummary[]>([]);
   const [activitySummaries, setActivitySummaries] = useState<ActivitySummary[]>([]);
