@@ -7,21 +7,26 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { api } from '@/lib/api';
+import { usePracticeStore } from '@/store/practice-store';
 import { subDays, subMonths, format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { BarChart2, TrendingUp, Loader2 } from 'lucide-react';
 
 type PeriodType = 'week' | 'month' | 'all' | 'custom';
 type ChartType = 'bar' | 'line';
-type ViewMode = 'all' | 'haengong_bonsuryeon' | 'walking';
+type ViewMode = 'all' | 'haengong_bonsuryeon' | 'walking' | (`item:${string}`);
 
 const VIEW_MODE_OPTIONS: { value: ViewMode; label: string; summaryLabel: string }[] = [
   { value: 'all', label: '전체', summaryLabel: '검색기간 나의 빛' },
   { value: 'haengong_bonsuryeon', label: '행공+본수련', summaryLabel: '행공+본수련 합계' },
   { value: 'walking', label: '걷기역사 (짧은 코스)', summaryLabel: '걷기역사 (짧은 코스) 합계' },
 ];
+
+const ITEM_FILTER_PREFIX = 'item:';
 
 interface DailySummary { date: string; totalLight: number; }
 interface ActivitySummary {
@@ -36,10 +41,13 @@ export function PracticeStatsChart({ refreshKey }: { refreshKey?: number }) {
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const oneMonthAgoStr = format(subMonths(new Date(), 1), 'yyyy-MM-dd');
 
+  const practiceItems = usePracticeStore((s) => s.practiceItems);
+  const fetchPracticeItems = usePracticeStore((s) => s.fetchPracticeItems);
+
   const [period, setPeriod] = useState<PeriodType>('week');
   const [startDate, setStartDate] = useState<string>(oneMonthAgoStr);
   const [endDate, setEndDate] = useState<string>(todayStr);
-  const [viewMode, setViewMode] = useState<ViewMode>('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('haengong_bonsuryeon');
   const [chartType, setChartType] = useState<ChartType>('bar');
   const [dailySummaries, setDailySummaries] = useState<DailySummary[]>([]);
   const [activitySummaries, setActivitySummaries] = useState<ActivitySummary[]>([]);
@@ -87,6 +95,13 @@ export function PracticeStatsChart({ refreshKey }: { refreshKey?: number }) {
     fetchStats();
   }, [fetchStats]);
 
+  // 콤보 옵션에 표시할 실천항목 목록 (다른 경로에서 이미 불러왔다면 스킵)
+  useEffect(() => {
+    if (practiceItems.length === 0) {
+      fetchPracticeItems();
+    }
+  }, [practiceItems.length, fetchPracticeItems]);
+
   const handleStartDateChange = (value: string) => {
     setStartDate(value);
     if (value && endDate && value > endDate) {
@@ -101,7 +116,16 @@ export function PracticeStatsChart({ refreshKey }: { refreshKey?: number }) {
     }
   };
 
-  const currentViewOption = VIEW_MODE_OPTIONS.find((o) => o.value === viewMode) || VIEW_MODE_OPTIONS[0];
+  // 합계 행 라벨: 프리셋이면 지정 라벨, 개별 항목이면 "OOO 합계"
+  const selectedItemId = viewMode.startsWith(ITEM_FILTER_PREFIX)
+    ? viewMode.slice(ITEM_FILTER_PREFIX.length)
+    : null;
+  const summaryLabel = selectedItemId
+    ? (() => {
+        const item = practiceItems.find((i) => i.id === selectedItemId);
+        return item ? `${item.name} 합계` : '선택 항목 합계';
+      })()
+    : (VIEW_MODE_OPTIONS.find((o) => o.value === viewMode)?.summaryLabel || VIEW_MODE_OPTIONS[0].summaryLabel);
 
   const chartData = dailySummaries.map(d => ({
     date: (() => {
@@ -179,20 +203,30 @@ export function PracticeStatsChart({ refreshKey }: { refreshKey?: number }) {
           </div>
         )}
 
-        {/* 실천현황 조회 유형 선택 */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-1">
-          {VIEW_MODE_OPTIONS.map((option) => (
-            <Button
-              key={option.value}
-              type="button"
-              variant={viewMode === option.value ? 'default' : 'outline'}
-              size="sm"
-              className="h-7 px-2.5 text-xs"
-              onClick={() => setViewMode(option.value)}
-            >
-              {option.label}
-            </Button>
-          ))}
+        {/* 통계항목 선택 (콤보) */}
+        <div className="flex items-center gap-2 pt-1">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">통계항목</span>
+          <Select value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+            <SelectTrigger className="h-8 w-full sm:w-[220px] text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>요약 유형</SelectLabel>
+                {VIEW_MODE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>실천항목별</SelectLabel>
+                {practiceItems.map((item) => (
+                  <SelectItem key={item.id} value={`${ITEM_FILTER_PREFIX}${item.id}`}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
       </CardHeader>
       <CardContent>
@@ -261,7 +295,7 @@ export function PracticeStatsChart({ refreshKey }: { refreshKey?: number }) {
                     ))}
                     {/* 합계 행 */}
                     <tr className="border-t bg-muted/30">
-                      <td className="px-3 py-2 font-bold">{currentViewOption.summaryLabel}</td>
+                      <td className="px-3 py-2 font-bold">{summaryLabel}</td>
                       <td className="text-right px-3 py-2 font-semibold text-muted-foreground">
                         {viewMode === 'all' ? '—' : totalCount.toLocaleString()}
                       </td>

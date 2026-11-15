@@ -17,29 +17,36 @@ interface PracticeLogRow {
   practice_items?: PracticeItemRow | PracticeItemRow[] | null;
 }
 
-type StatsFilter = 'all' | 'haengong_bonsuryeon' | 'walking';
+type StatsFilter =
+  | { kind: 'all' }
+  | { kind: 'preset'; preset: 'haengong_bonsuryeon' | 'walking' }
+  | { kind: 'item'; itemId: string };
 
 function parseStatsFilter(value: string | null): StatsFilter {
-  if (value === 'haengong_bonsuryeon' || value === 'walking') return value;
-  return 'all';
+  if (value === 'haengong_bonsuryeon' || value === 'walking') {
+    return { kind: 'preset', preset: value };
+  }
+  if (value?.startsWith('item:')) {
+    const itemId = value.slice('item:'.length).trim();
+    if (itemId) return { kind: 'item', itemId };
+  }
+  return { kind: 'all' };
 }
 
-function matchesPracticeFilter(itemName: string, filter: StatsFilter): boolean {
-  if (filter === 'all') return true;
+function matchesPracticeFilter(itemName: string, itemId: string, filter: StatsFilter): boolean {
+  if (filter.kind === 'all') return true;
+  if (filter.kind === 'item') return itemId === filter.itemId;
   const trimmed = itemName.trim();
-  if (filter === 'haengong_bonsuryeon') {
+  if (filter.preset === 'haengong_bonsuryeon') {
     return trimmed === '행공' || trimmed === '본수련';
   }
-  if (filter === 'walking') {
-    const normalized = trimmed.replace(/\s+/g, '');
-    return (
-      normalized.includes('걷기역사') ||
-      (normalized.includes('걷기') && normalized.includes('코스')) ||
-      normalized.includes('짧은코스') ||
-      normalized.includes('잛은코스')
-    );
-  }
-  return true;
+  const normalized = trimmed.replace(/\s+/g, '');
+  return (
+    normalized.includes('걷기역사') ||
+    (normalized.includes('걷기') && normalized.includes('코스')) ||
+    normalized.includes('짧은코스') ||
+    normalized.includes('잛은코스')
+  );
 }
 
 async function getUserFromToken(token: string) {
@@ -146,7 +153,7 @@ export async function GET(request: NextRequest) {
 
   for (const log of (logs || [])) {
     const practiceItem = Array.isArray(log.practice_items) ? log.practice_items[0] : log.practice_items;
-    if (!matchesPracticeFilter(practiceItem?.name || '', filter)) {
+    if (!matchesPracticeFilter(practiceItem?.name || '', log.practice_item_id, filter)) {
       continue;
     }
 

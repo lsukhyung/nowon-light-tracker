@@ -274,7 +274,7 @@ class ApiClient {
   async getMyStats(
     start?: string,
     end?: string,
-    filter?: 'all' | 'haengong_bonsuryeon' | 'walking'
+    filter?: 'all' | 'haengong_bonsuryeon' | 'walking' | (`item:${string}`)
   ) {
     const { data } = await this.client.get('/api/stats', {
       params: {
